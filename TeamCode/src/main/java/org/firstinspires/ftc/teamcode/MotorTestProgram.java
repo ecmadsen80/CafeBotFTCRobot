@@ -33,7 +33,7 @@ public class MotorTestProgram extends LinearOpMode {
     // for GoBuilda 5204 223 RPM motor with 751.8 PPR = 2794.19
     // AI suggested that max is typically around 2500 (90% of max) for "headroom" for
     // the PID controller
-    static final double TURN_VELOCITY = 1000; //i set to 1000 to move slower
+    static final double TURN_VELOCITY = 2500; //i set to 1000 to move slower
     static final double DEADZONE = 0.1;
     private boolean goingUp = false;
     private double pos = 0.284;
@@ -121,20 +121,19 @@ public class MotorTestProgram extends LinearOpMode {
             else if (gamepad1.aWasPressed()) targetAngle = 180;
             else if (gamepad1.xWasPressed()) targetAngle = 270;
 
-            double angleDeg = targetAngle; //left this in so when I revert to original code it'll
-            //still be there to use below
-
-            // Correct degrees → encoder ticks
-            int targetTicks = (int)((angleDeg / 360.0) * TURN_TICKS_PER_REV);
-
-            // Get current encoder positions
+            //get current encoder positions
             int leftCurrentTicks = leftTurn.getCurrentPosition();
             int rightCurrentTicks = rightTurn.getCurrentPosition();
             // Convert to degrees
             int leftCurrentDegrees = (int)((leftCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
             int rightCurrentDegrees = (int)((rightCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
 
+            double angleDeg = targetAngle; //left this in so when I revert to original code it'll
+            //still be there to use below
+            double moveToAngle = closestAngle(angleDeg, leftCurrentDegrees) + leftCurrentDegrees;
 
+            // Correct degrees → encoder ticks
+            int targetTicks = (int)((moveToAngle / 360.0) * TURN_TICKS_PER_REV);
 
             // Turn motors
             leftTurn.setTargetPosition(targetTicks);
@@ -156,6 +155,14 @@ public class MotorTestProgram extends LinearOpMode {
 
         }
 
+    }
+
+    private double closestAngle(double target, double current) {
+        double dir = (target % 360) - (current % 360);
+        if (Math.abs(dir) > 180.0) {
+            dir = -(Math.signum(dir) * 360.0) + dir;
+        }
+        return dir;
     }
 
 }
