@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 
 @TeleOp(name="MotorTestProgram OpMode", group="Linear OpMode")
@@ -58,8 +59,6 @@ public class MotorTestProgram extends LinearOpMode {
         leftTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-
-
         leftTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
@@ -80,9 +79,10 @@ public class MotorTestProgram extends LinearOpMode {
         double targetAngle = 0;
 
         while (opModeIsActive()) {
-            /*
+
             double x = gamepad1.left_stick_x;
             double y = -gamepad1.left_stick_y; // FTC Y inverted
+            double turn = gamepad1.right_stick_x;
 
             // Raw magnitude
             double rawMag = Math.hypot(x, y);
@@ -103,23 +103,30 @@ public class MotorTestProgram extends LinearOpMode {
             // Scaled magnitude (optional throttle curve)
             double mag = Range.clip(rawMag, 0, 1);
 
-            // Drive power where "mag" is a clipped version of "rawMag"
-            leftDrive.setPower(mag);
-            rightDrive.setPower(mag);
+            // Drive power calculation with Turn (Z-axis rotation)
+            double leftPower = mag + turn;
+            double rightPower = mag - turn;
+
+            // Use Range.clip to ensure power stays between -1 and 1
+            leftDrive.setPower(Range.clip(leftPower, -1, 1));
+            rightDrive.setPower(Range.clip(rightPower, -1, 1));
 
             // Angle in degrees [0,360)
-            double angleDeg = Math.toDegrees(Math.atan2(ny, nx));
+            double angleDeg = Math.toDegrees(Math.atan2(nx, ny));
             if (angleDeg < 0) angleDeg += 360;
             //0 is directly right (1, 0), 90 is directly up (0, 1), 180 is directly left (-1, 0),
             // and 270 is directly down (-1,0)
             angleDeg += 0;
 
-             */
 
+            /*
+            This was here to test the specific angles and the PIDF controller
             if (gamepad1.yWasPressed()) targetAngle = 0;
             else if (gamepad1.bWasPressed()) targetAngle = 90;
             else if (gamepad1.aWasPressed()) targetAngle = 180;
             else if (gamepad1.xWasPressed()) targetAngle = 270;
+            double angleDeg = targetAngle; //used for 4-button debug
+            */
 
             //get current encoder positions
             int leftCurrentTicks = leftTurn.getCurrentPosition();
@@ -128,24 +135,31 @@ public class MotorTestProgram extends LinearOpMode {
             int leftCurrentDegrees = (int)((leftCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
             int rightCurrentDegrees = (int)((rightCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
 
-            double angleDeg = targetAngle; //left this in so when I revert to original code it'll
-            //still be there to use below
-            double moveToAngle = closestAngle(angleDeg, leftCurrentDegrees) + leftCurrentDegrees;
+
+            //calculates the closest angle to the target angle and the sets the move to angle by adding to current degrees
+            double moveToAngleLeft = closestAngle(angleDeg, leftCurrentDegrees) + leftCurrentDegrees;
+            double moveToAngleRight = closestAngle(angleDeg, rightCurrentDegrees) + rightCurrentDegrees;
+
 
             // Correct degrees → encoder ticks
-            int targetTicks = (int)((moveToAngle / 360.0) * TURN_TICKS_PER_REV);
+            int targetTicksRight = (int)((moveToAngleRight / 360.0) * TURN_TICKS_PER_REV);
+            int targetTicksLeft = (int)((moveToAngleLeft / 360.0) * TURN_TICKS_PER_REV);
 
             // Turn motors
-            leftTurn.setTargetPosition(targetTicks);
-            rightTurn.setTargetPosition(targetTicks);
+            leftTurn.setTargetPosition(targetTicksLeft);
+            rightTurn.setTargetPosition(targetTicksRight);
 
             //using setVelocity should use the internal PID controller
             leftTurn.setVelocity(TURN_VELOCITY);
             rightTurn.setVelocity(TURN_VELOCITY);
 
+            //leftTurn.setPower(TURN_POWER);
+            //rightTurn.setPower(TURN_POWER);
+
+
             // Telemetry
             telemetry.addData("Angle deg", angleDeg);
-            telemetry.addData("Target ticks", targetTicks);
+            telemetry.addData("Target ticks", targetTicksLeft);
             telemetry.addData("Left Current Position", leftCurrentDegrees);
             telemetry.addData("Right Current Position", rightCurrentDegrees);
             //telemetry.addData("Raw mag", rawMag);
