@@ -53,7 +53,6 @@ public class MotorTestProgram extends LinearOpMode {
         rightPusher= hardwareMap.get(DcMotor.class, "rightpusher");
         light = hardwareMap.get(Servo.class, "light");
         //hi
-
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
