@@ -23,9 +23,11 @@ public class MotorTestProgram extends LinearOpMode {
     private DcMotorEx leftTurn = null;
     private DcMotorEx rightDrive = null;
     private DcMotorEx rightTurn = null;
+    private DcMotor leftPusher;
+    private DcMotor rightPusher;
+    private DcMotor intake;
     private Servo light;
 
-    private Gamepad gp1;
     ArrayList<Float> myList = new ArrayList<>();
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
     static final double TURN_POWER = 1;
@@ -46,6 +48,9 @@ public class MotorTestProgram extends LinearOpMode {
         leftTurn   = hardwareMap.get(DcMotorEx.class, "left_turn");
         rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
         rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
+        intake     = hardwareMap.get(DcMotor.class, "intake");
+        leftPusher = hardwareMap.get(DcMotor.class, "leftpusher");
+        rightPusher= hardwareMap.get(DcMotor.class, "rightpusher");
         light = hardwareMap.get(Servo.class, "light");
 
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -68,9 +73,11 @@ public class MotorTestProgram extends LinearOpMode {
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        gp1 = gamepad1;
 
         waitForStart();
+        leftPusher.setPower(-1.0);
+        rightPusher.setPower(-1.0);
+        intake.setPower(1.0);
 
         runtime.reset();
         leftTurn.setPower(1.0);
