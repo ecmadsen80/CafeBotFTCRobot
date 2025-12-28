@@ -75,9 +75,8 @@ public class MotorTestProgram extends LinearOpMode {
 
 
         waitForStart();
-        leftPusher.setPower(-1.0);
-        rightPusher.setPower(-1.0);
-        intake.setPower(1.0);
+
+
 
         runtime.reset();
         leftTurn.setPower(1.0);
@@ -94,14 +93,17 @@ public class MotorTestProgram extends LinearOpMode {
             // Raw magnitude
             double rawMag = Math.hypot(x, y);
 
-            // Deadzone
-            if (rawMag < DEADZONE) {
-                leftDrive.setPower(0);
-                rightDrive.setPower(0);
-                leftTurn.setVelocity(0); //setVelocity actively holds the motor in it's current position
-                rightTurn.setVelocity(0);
-                continue;
+
+
+            double intakePower = gamepad1.left_trigger;
+            if (intakePower > 0.1) {
+                intake.setPower(-1.0);
+                leftPusher.setPower(-1.0);
+                rightPusher.setPower(-1.0);
             }
+
+
+
 
             // Normalize stick vector
             double nx = x / rawMag;
@@ -163,8 +165,12 @@ public class MotorTestProgram extends LinearOpMode {
             //leftTurn.setPower(TURN_POWER);
             //rightTurn.setPower(TURN_POWER);
 
+            intake.setPower(0.0);
+            leftPusher.setPower(0);
+            rightPusher.setPower(0);
 
             // Telemetry
+            telemetry.addData("IntakePower", intakePower);
             telemetry.addData("Angle deg", angleDeg);
             telemetry.addData("Target ticks", targetTicksLeft);
             telemetry.addData("Left Current Position", leftCurrentDegrees);
@@ -173,6 +179,15 @@ public class MotorTestProgram extends LinearOpMode {
             //telemetry.addData("Mag", mag);
             //telemetry.addData("XY", "%.2f %.2f", x, y);
             telemetry.update();
+
+            // Deadzone
+            if (rawMag < DEADZONE) {
+                leftDrive.setPower(0);
+                rightDrive.setPower(0);
+                leftTurn.setVelocity(0); //setVelocity actively holds the motor in it's current position
+                rightTurn.setVelocity(0);
+                continue;
+            }
 
         }
 
