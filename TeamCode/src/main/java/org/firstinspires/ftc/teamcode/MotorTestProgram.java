@@ -73,6 +73,11 @@ public class MotorTestProgram extends LinearOpMode {
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
+        com.acmerobotics.dashboard.FtcDashboard dashboard = com.acmerobotics.dashboard.FtcDashboard.getInstance();
+        com.acmerobotics.dashboard.telemetry.TelemetryPacket packet = new com.acmerobotics.dashboard.telemetry.TelemetryPacket();
+        // Get the voltage sensor from the hardware map
+        com.qualcomm.robotcore.hardware.VoltageSensor batteryVoltageSensor = hardwareMap.voltageSensor.iterator().next();
+
 
         waitForStart();
 
@@ -95,11 +100,14 @@ public class MotorTestProgram extends LinearOpMode {
 
 
 
-            double intakePower = gamepad1.left_trigger;
+            double intakePower = gamepad1.left_trigger-gamepad1.right_trigger;
             if (intakePower > 0.1) {
                 intake.setPower(-1.0);
                 leftPusher.setPower(-1.0);
                 rightPusher.setPower(-1.0);
+            }
+            if (intakePower < -0.1) {
+                intake.setPower(1.0);
             }
 
 
@@ -169,6 +177,24 @@ public class MotorTestProgram extends LinearOpMode {
             leftPusher.setPower(0);
             rightPusher.setPower(0);
 
+
+            // 2. Get current values in Amps (Requires DcMotorEx)
+            double currentLeftDrive  = leftDrive.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
+            double currentRightDrive = rightDrive.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
+            double currentLeftTurn   = leftTurn.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
+            double currentRightTurn  = rightTurn.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
+            // 1. Read the current voltage
+            double voltage = batteryVoltageSensor.getVoltage();
+
+            // 2. Add data to the packet for graphing
+            packet.put("Battery Voltage", voltage);
+            packet.put("Current/Left Drive (A)", currentLeftDrive);
+            packet.put("Current/Right Drive (A)", currentRightDrive);
+            packet.put("Current/Left Turn (A)", currentLeftTurn);
+            packet.put("Current/Right Turn (A)", currentRightTurn);
+
+            // 4. Send the packet to the dashboard
+            dashboard.sendTelemetryPacket(packet);
             // Telemetry
             telemetry.addData("IntakePower", intakePower);
             telemetry.addData("Angle deg", angleDeg);

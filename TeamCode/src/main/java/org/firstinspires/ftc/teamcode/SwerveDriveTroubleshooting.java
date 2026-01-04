@@ -96,7 +96,7 @@ public class SwerveDriveTroubleshooting extends LinearOpMode {
             //double rightTurnPower = gamepad1.right_trigger;
             leftTurn.setTargetPosition(0);
             rightTurn.setTargetPosition(0);
-            +leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             leftTurn.setVelocity(TURN_VELOCITY);
             rightTurn.setVelocity(TURN_VELOCITY);
