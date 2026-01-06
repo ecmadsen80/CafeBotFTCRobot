@@ -3,8 +3,6 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
-import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import java.util.ArrayList;
@@ -59,6 +57,7 @@ public class RobotFinalCombination extends LinearOpMode {
     @Override
     public void runOpMode() {
 
+        //Initialization
         leftDrive  = hardwareMap.get(DcMotorEx.class, "left_drive");
         leftTurn   = hardwareMap.get(DcMotorEx.class, "left_turn");
         rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
@@ -75,13 +74,12 @@ public class RobotFinalCombination extends LinearOpMode {
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        //hi
+        //Motor Parameter Setup
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         leftTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        //rightTurn.setDirection(DcMotor.Direction.REVERSE);
 
         leftTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -108,8 +106,8 @@ public class RobotFinalCombination extends LinearOpMode {
 
 
         runtime.reset();
-        leftTurn.setPower(1.0);
-        rightTurn.setPower(1.0);
+        leftTurn.setPower(1.0); //I'm not sure why this is here
+        rightTurn.setPower(1.0); //Ditto
 
         int position= 0;
         double targetAngle = 0;
@@ -131,20 +129,22 @@ public class RobotFinalCombination extends LinearOpMode {
             // Scaled magnitude (optional throttle curve)
             double mag = Range.clip(rawMag, 0, 1);
 
-            // Drive power calculation with Turn (Z-axis rotation)
-            double leftPower = mag;
-            double rightPower = mag;
+            // Drive power calculation with Turn (Z-axis rotation). This doesn't work great if wheels are
+            // perpendicular to the robot
+            double leftPower = mag + turn;
+            double rightPower = mag - turn;
 
-            // Use Range.clip to ensure power stays between -1 and 1
-            leftDrive.setPower(Range.clip(leftPower, -1, 1));
-            rightDrive.setPower(Range.clip(rightPower, -1, 1));
+            // Use Range.clip to ensure power stays between -1 and 1; Removed when added new swerve optimization
+            //leftDrive.setPower(Range.clip(leftPower, -1, 1));
+            //rightDrive.setPower(Range.clip(rightPower, -1, 1));
 
-            // Angle in degrees [0,360)
-            double angleDeg = Math.toDegrees(Math.atan2(nx, ny));
-            if (angleDeg < 0) angleDeg += 360;
-            //0 is directly right (1, 0), 90 is directly up (0, 1), 180 is directly left (-1, 0),
-            // and 270 is directly down (-1,0)
-            angleDeg += 0;
+            // Calculate targetAngle in degrees [0,360) from the joystick input.
+            double targetAngleDeg = Math.toDegrees(Math.atan2(nx, ny));
+
+            //Normalize to 360
+            if (targetAngleDeg < 0) targetAngleDeg += 360; //0 is directly right (1, 0), 90 is directly up (0, 1), 180 is directly left (-1, 0),             // and 270 is directly down (-1,0)
+
+
             //get current encoder positions
             int leftCurrentTicks = leftTurn.getCurrentPosition();
             int rightCurrentTicks = rightTurn.getCurrentPosition();
@@ -154,11 +154,29 @@ public class RobotFinalCombination extends LinearOpMode {
 
 
             //calculates the closest angle to the target angle and the sets the move to angle by adding to current degrees
-            double moveToAngleLeft = closestAngle(angleDeg, leftCurrentDegrees) + leftCurrentDegrees;
-            double moveToAngleRight = closestAngle(angleDeg, rightCurrentDegrees) + rightCurrentDegrees;
+            //removed this when added the below "optimization"
+            //double moveToAngleLeft = closestAngle(targetAngleDeg, leftCurrentDegrees) + leftCurrentDegrees;
+            //double moveToAngleRight = closestAngle(targetAngleDeg, rightCurrentDegrees) + rightCurrentDegrees;
+
+            // --- SWERVE OPTIMIZATION --- Only calculates based on one side? Will this be a problem?
+            double driveMultiplier = 1.0;
+            double diffBetweenAngles = closestAngle(targetAngleDeg, leftCurrentDegrees);
+
+            // If the required turn is more than 90 degrees, reverse the motor
+            // and turn to the opposite angle instead.
+            if (Math.abs(diffBetweenAngles) > 90) {
+                driveMultiplier = -1.0;
+                // Add 180 to the target and keep it in 0-360 range
+                targetAngleDeg = (targetAngleDeg + 180) % 360;
+            }
+
+            // Re-calculate the moveToAngle based on the potentially optimized targetAngleDeg
+            double optimizedMoveToAngleLeft = closestAngle(targetAngleDeg, leftCurrentDegrees) + leftCurrentDegrees;
+            double optimizedMoveToAngleRight = closestAngle(targetAngleDeg, rightCurrentDegrees) + rightCurrentDegrees;
+
             // Correct degrees → encoder ticks
-            int targetTicksRight = (int)((moveToAngleRight / 360.0) * TURN_TICKS_PER_REV);
-            int targetTicksLeft = (int)((moveToAngleLeft / 360.0) * TURN_TICKS_PER_REV);
+            int targetTicksRight = (int)((optimizedMoveToAngleRight / 360.0) * TURN_TICKS_PER_REV);
+            int targetTicksLeft = (int)((optimizedMoveToAngleLeft / 360.0) * TURN_TICKS_PER_REV);
 
             // Turn motors
             leftTurn.setTargetPosition(targetTicksLeft);
@@ -167,6 +185,10 @@ public class RobotFinalCombination extends LinearOpMode {
             //using setVelocity should use the internal PID controller
             leftTurn.setVelocity(TURN_VELOCITY);
             rightTurn.setVelocity(TURN_VELOCITY);
+
+            // Update the drive power to account for potential reversal
+            leftDrive.setPower(Range.clip(leftPower * driveMultiplier, -1, 1));
+            rightDrive.setPower(Range.clip(rightPower * driveMultiplier, -1, 1));
 
 
 
@@ -243,10 +265,10 @@ public class RobotFinalCombination extends LinearOpMode {
 
             // Telemetry
             telemetry.addData("IntakePower", intakePower);
-            telemetry.addData("Angle deg", angleDeg);
+            telemetry.addData("Target Angle deg", targetAngleDeg);
             telemetry.addData("flywheel target RPM", targetRPM);
-            telemetry.addData("Left Target Position", moveToAngleLeft);
-            telemetry.addData("Right Target Position", moveToAngleRight);
+            telemetry.addData("Left Target Position", optimizedMoveToAngleLeft);
+            telemetry.addData("Right Target Position", optimizedMoveToAngleRight);
             telemetry.addData("Left Current Position", leftCurrentDegrees);
             telemetry.addData("Right Current Position", rightCurrentDegrees);
             //telemetry.addData("Raw mag", rawMag);
