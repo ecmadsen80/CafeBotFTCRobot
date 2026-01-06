@@ -76,6 +76,7 @@ import java.util.List;
  *   and the ip address the Limelight device assigned the Control Hub and which is displayed in small text
  *   below the name of the Limelight on the top level configuration screen.
  */
+@Disabled
 @TeleOp(name="does this work", group="Linear OpMode")
 
 public class MyBasicOpMode_Linear extends LinearOpMode {

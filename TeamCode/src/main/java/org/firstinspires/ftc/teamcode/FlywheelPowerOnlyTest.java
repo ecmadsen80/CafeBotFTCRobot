@@ -39,7 +39,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
-
+@Disabled
 @TeleOp(name="Flyweel Power Only Test", group="TeleOp")
 
 public class FlywheelPowerOnlyTest extends LinearOpMode {

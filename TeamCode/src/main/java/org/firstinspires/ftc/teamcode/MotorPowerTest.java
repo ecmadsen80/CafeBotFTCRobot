@@ -39,7 +39,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
-
+@Disabled
 @TeleOp(name="Motor Power Adjuster", group="TeleOp")
 
 public class MotorPowerTest extends LinearOpMode {
