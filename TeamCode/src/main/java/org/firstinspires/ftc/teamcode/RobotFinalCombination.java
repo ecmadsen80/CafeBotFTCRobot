@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 
+import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -11,6 +12,8 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
+import com.seattlesolvers.solverslib.controller.PIDFController;
+
 
 
 @TeleOp(name="Final TeleOp Robot Program", group="Linear OpMode")
@@ -24,6 +27,7 @@ public class RobotFinalCombination extends LinearOpMode {
     private DcMotorEx leftTurn = null;
     private DcMotorEx rightDrive = null;
     private DcMotorEx rightTurn = null;
+    DcMotorEx flywheel = null;
     private DcMotor leftPusher;
     private DcMotor rightPusher;
     private DcMotor intake;
@@ -31,6 +35,9 @@ public class RobotFinalCombination extends LinearOpMode {
     private Limelight3A limelight;
     private Servo feederLever = null;
     //private DigitalChannel laserInput;
+
+    //PID Controller for Aiming
+    private PIDFController aimPid = new PIDFController(0.04, 0.0, 0.002, 0.05);
 
     private static final double MAX_RPM = 5000;
     private static final double MIN_RPM = 0;
@@ -53,6 +60,7 @@ public class RobotFinalCombination extends LinearOpMode {
     private boolean goingUp = false;
     private double pos = 0.284;
     private double targetRPM = 1500;
+    private boolean xToggle = false; //to toggle between fast and slow motor speeds, false = slow
 
     @Override
     public void runOpMode() {
@@ -65,8 +73,9 @@ public class RobotFinalCombination extends LinearOpMode {
         intake     = hardwareMap.get(DcMotor.class, "intake");
         leftPusher = hardwareMap.get(DcMotor.class, "leftpusher");
         rightPusher= hardwareMap.get(DcMotor.class, "rightpusher");
+        limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
         light = hardwareMap.get(Servo.class, "light");
-        DcMotorEx flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
         feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
         //laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
         light  = hardwareMap.get(Servo.class, "light");
@@ -100,6 +109,13 @@ public class RobotFinalCombination extends LinearOpMode {
         com.acmerobotics.dashboard.telemetry.TelemetryPacket packet = new com.acmerobotics.dashboard.telemetry.TelemetryPacket();
         com.qualcomm.robotcore.hardware.VoltageSensor batteryVoltageSensor = hardwareMap.voltageSensor.iterator().next();
 
+        //Limelight initialization
+        limelight.pipelineSwitch(0);
+        limelight.start();
+
+        telemetry.addData(">", "Robot Ready.  Press Play.");
+        telemetry.update();
+
 
         waitForStart();
 
@@ -114,36 +130,43 @@ public class RobotFinalCombination extends LinearOpMode {
 
         while (opModeIsActive()) {
 
+            //New Swerve Drive Logic to incorporate Turning while strafing
+            // 1. Capture Joystick Inputs
+            double lx = gamepad1.left_stick_x;
+            double ly = -gamepad1.left_stick_y;
+            double turn;
 
-            //Swerve Drive
-            double x = gamepad1.left_stick_x;
-            double y = -gamepad1.left_stick_y; // FTC Y inverted
-            double turn = gamepad1.right_stick_x;
+            //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
+            if (gamepad1.right_bumper) {
+                turn = pointAtTag();
+            } else {
+                turn = gamepad1.right_stick_x;
+                aimPid.reset(); // Reset PID memory when not in use
+            }
 
-            // Raw magnitude
-            double rawMag = Math.hypot(x, y);
-            // Normalize stick vector
-            double nx = x / rawMag;
-            double ny = y / rawMag;
+            // 2. Define Rotation Vectors
+            // For a 2-module robot to spin, one wheel points "up/left" and the other "up/right"
+            // We'll assume the modules are on the left and right sides.
+            double leftRotationX = 0;   // Vertical component of rotation for left pod
+            double leftRotationY = turn;
+            double rightRotationX = 0;
+            double rightRotationY = -turn;
 
-            // Scaled magnitude (optional throttle curve)
-            double mag = Range.clip(rawMag, 0, 1);
+            // 3. Combine Translation (Left Stick) and Rotation (Right Stick)
+            double combinedLeftX = lx + leftRotationX;
+            double combinedLeftY = ly + leftRotationY;
+            double combinedRightX = lx + rightRotationX;
+            double combinedRightY = ly + rightRotationY;
 
-            // Drive power calculation with Turn (Z-axis rotation). This doesn't work great if wheels are
-            // perpendicular to the robot
-            double leftPower = mag + turn;
-            double rightPower = mag - turn;
+            // 4. Calculate Individual Magnitudes and Angles
+            double magLeft = Math.hypot(combinedLeftX, combinedLeftY);
+            double magRight = Math.hypot(combinedRightX, combinedRightY);
 
-            // Use Range.clip to ensure power stays between -1 and 1; Removed when added new swerve optimization
-            //leftDrive.setPower(Range.clip(leftPower, -1, 1));
-            //rightDrive.setPower(Range.clip(rightPower, -1, 1));
+            double targetAngleLeft = Math.toDegrees(Math.atan2(combinedLeftX, combinedLeftY));
+            double targetAngleRight = Math.toDegrees(Math.atan2(combinedRightX, combinedRightY));
 
-            // Calculate targetAngle in degrees [0,360) from the joystick input.
-            double targetAngleDeg = Math.toDegrees(Math.atan2(nx, ny));
-
-            //Normalize to 360
-            if (targetAngleDeg < 0) targetAngleDeg += 360; //0 is directly right (1, 0), 90 is directly up (0, 1), 180 is directly left (-1, 0),             // and 270 is directly down (-1,0)
-
+            if (targetAngleLeft < 0) targetAngleLeft += 360;
+            if (targetAngleRight < 0) targetAngleRight += 360;
 
             //get current encoder positions
             int leftCurrentTicks = leftTurn.getCurrentPosition();
@@ -152,44 +175,64 @@ public class RobotFinalCombination extends LinearOpMode {
             int leftCurrentDegrees = (int)((leftCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
             int rightCurrentDegrees = (int)((rightCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
 
-
-            //calculates the closest angle to the target angle and the sets the move to angle by adding to current degrees
-            //removed this when added the below "optimization"
-            //double moveToAngleLeft = closestAngle(targetAngleDeg, leftCurrentDegrees) + leftCurrentDegrees;
-            //double moveToAngleRight = closestAngle(targetAngleDeg, rightCurrentDegrees) + rightCurrentDegrees;
-
-            // --- SWERVE OPTIMIZATION --- Only calculates based on one side? Will this be a problem?
-            double driveMultiplier = 1.0;
-            double diffBetweenAngles = closestAngle(targetAngleDeg, leftCurrentDegrees);
-
-            // If the required turn is more than 90 degrees, reverse the motor
-            // and turn to the opposite angle instead.
-            if (Math.abs(diffBetweenAngles) > 90) {
-                driveMultiplier = -1.0;
-                // Add 180 to the target and keep it in 0-360 range
-                targetAngleDeg = (targetAngleDeg + 180) % 360;
+            // 5. Optimization for LEFT Pod
+            double driveMultLeft = 1.0;
+            double diffLeft = closestAngle(targetAngleLeft, leftCurrentDegrees);
+            if (Math.abs(diffLeft) > 90) {
+                driveMultLeft = -1.0;
+                targetAngleLeft = (targetAngleLeft + 180) % 360;
             }
 
-            // Re-calculate the moveToAngle based on the potentially optimized targetAngleDeg
-            double optimizedMoveToAngleLeft = closestAngle(targetAngleDeg, leftCurrentDegrees) + leftCurrentDegrees;
-            double optimizedMoveToAngleRight = closestAngle(targetAngleDeg, rightCurrentDegrees) + rightCurrentDegrees;
+            // 6. Optimization for RIGHT Pod
+            double driveMultRight = 1.0;
+            double diffRight = closestAngle(targetAngleRight, rightCurrentDegrees);
+            if (Math.abs(diffRight) > 90) {
+                driveMultRight = -1.0;
+                targetAngleRight = (targetAngleRight + 180) % 360;
+            }
 
-            // Correct degrees → encoder ticks
-            int targetTicksRight = (int)((optimizedMoveToAngleRight / 360.0) * TURN_TICKS_PER_REV);
-            int targetTicksLeft = (int)((optimizedMoveToAngleLeft / 360.0) * TURN_TICKS_PER_REV);
+            // 7. Calculate Final Motor Targets
+            double moveLeft = closestAngle(targetAngleLeft, leftCurrentDegrees) + leftCurrentDegrees;
+            double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
 
-            // Turn motors
-            leftTurn.setTargetPosition(targetTicksLeft);
-            rightTurn.setTargetPosition(targetTicksRight);
+            leftTurn.setTargetPosition((int)((moveLeft / 360.0) * TURN_TICKS_PER_REV));
+            rightTurn.setTargetPosition((int)((moveRight / 360.0) * TURN_TICKS_PER_REV));
 
-            //using setVelocity should use the internal PID controller
             leftTurn.setVelocity(TURN_VELOCITY);
             rightTurn.setVelocity(TURN_VELOCITY);
 
-            // Update the drive power to account for potential reversal
-            leftDrive.setPower(Range.clip(leftPower * driveMultiplier, -1, 1));
-            rightDrive.setPower(Range.clip(rightPower * driveMultiplier, -1, 1));
+            // 8. Apply Final Drive Power
+            // Normalize magnitudes if they exceed 1.0
+            double maxMag = Math.max(1.0, Math.max(magLeft, magRight));
 
+
+            // Switch between fast speed and slow speed
+            if (gamepad1.xWasPressed()) {
+                xToggle = !xToggle; // Switches true to false or false to true
+            }
+
+            // Determine the speed multiplier based on the toggle state
+            double speedLimit = xToggle ? 0.5 : 1.0;
+
+            // Motor power combination of left and right sides and fast/slow state
+            leftDrive.setPower(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
+            rightDrive.setPower(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
+
+
+
+
+            //LimeLight
+            LLResult result = limelight.getLatestResult();
+            if (result.isValid()) {
+                // distance is calculated based on linear regression with the equation Ta = distance
+                double distance = Math.pow((result.getTa()/10295.76),-0.5566);
+                telemetry.addData("distance:", "%.2f", distance);
+                telemetry.addData("tx", result.getTx());
+                telemetry.addData("ta", result.getTa());
+
+            } else {
+                telemetry.addData("Limelight", "No data available");
+            }
 
 
 
@@ -200,8 +243,16 @@ public class RobotFinalCombination extends LinearOpMode {
                 leftPusher.setPower(-1.0);
                 rightPusher.setPower(-1.0);
             }
-            if (intakePower < -0.1) {
+            else if (intakePower < -0.1) {
                 intake.setPower(1.0);
+                leftPusher.setPower(0);
+                rightPusher.setPower(0);
+            }
+            else {
+                //Rest Powers to 0 when buttons not pushed
+                intake.setPower(0.0);
+                leftPusher.setPower(0);
+                rightPusher.setPower(0);
             }
 
 
@@ -231,12 +282,9 @@ public class RobotFinalCombination extends LinearOpMode {
             if (gamepad1.aWasPressed()) {
                 shootTheBall();
             }
-            //Rest Powers to 0 when buttons not pushed
-            intake.setPower(0.0);
-            leftPusher.setPower(0);
-            rightPusher.setPower(0);
+
             // Deadzone
-            if (rawMag < DEADZONE) {
+            if (magLeft < DEADZONE && magRight < DEADZONE) {
                 leftDrive.setPower(0);
                 rightDrive.setPower(0);
                 leftTurn.setVelocity(0); //setVelocity actively holds the motor in it's current position
@@ -265,12 +313,14 @@ public class RobotFinalCombination extends LinearOpMode {
 
             // Telemetry
             telemetry.addData("IntakePower", intakePower);
-            telemetry.addData("Target Angle deg", targetAngleDeg);
-            telemetry.addData("flywheel target RPM", targetRPM);
-            telemetry.addData("Left Target Position", optimizedMoveToAngleLeft);
-            telemetry.addData("Right Target Position", optimizedMoveToAngleRight);
-            telemetry.addData("Left Current Position", leftCurrentDegrees);
-            telemetry.addData("Right Current Position", rightCurrentDegrees);
+            // Update these lines at the bottom of your loop
+            telemetry.addData("Left Target Angle", targetAngleLeft);
+            telemetry.addData("Right Target Angle", targetAngleRight);
+            telemetry.addData("Left Move To", moveLeft);
+            telemetry.addData("Right Move To", moveRight);
+            telemetry.addData("Left Current Deg", leftCurrentDegrees);
+            telemetry.addData("Right Current Deg", rightCurrentDegrees);
+
             //telemetry.addData("Raw mag", rawMag);
             //telemetry.addData("Mag", mag);
             //telemetry.addData("XY", "%.2f %.2f", x, y);
@@ -303,5 +353,24 @@ public class RobotFinalCombination extends LinearOpMode {
         feederLever.setPosition(0.0);
 
     }
+
+    private double pointAtTag() {
+        LLResult result = limelight.getLatestResult();
+
+        if (result != null && result.isValid()) {
+            // SolversLib uses calculate(target, current)
+            // We want the horizontal offset (tx) to be 0
+            double pidOutput = aimPid.calculate(0, result.getTx());
+            return Range.clip(pidOutput, -1.0, 1.0);
+        }
+
+        aimPid.reset(); // Clear integral sum when target is lost
+        return 0;
+    }
+
+
+
+
+
 
 }
