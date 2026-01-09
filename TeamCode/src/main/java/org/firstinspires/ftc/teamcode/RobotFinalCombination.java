@@ -16,7 +16,7 @@ import com.seattlesolvers.solverslib.controller.PIDFController;
 
 
 
-@TeleOp(name="Final TeleOp Robot Program", group="Linear OpMode")
+@TeleOp(name="A Working TeleOp", group="Linear OpMode")
 
 public class RobotFinalCombination extends LinearOpMode {
 
@@ -37,13 +37,15 @@ public class RobotFinalCombination extends LinearOpMode {
     //private DigitalChannel laserInput;
 
     //PID Controller for Aiming
-    private PIDFController aimPid = new PIDFController(0.04, 0.0, 0.002, 0.05);
+    private PIDFController aimPid = new PIDFController(0.025, 0.0, 0.0, 0.01);
 
     private static final double MAX_RPM = 5000;
     private static final double MIN_RPM = 0;
 
-    private static final double STEP = 500.0;
+    private static final double STEP = 50.0;
     private static final double TICKS_PER_REV = 28.0;
+
+    private static final double RIGHT_STICK_ADJUSTER = 0.7;
 
 
 
@@ -59,8 +61,23 @@ public class RobotFinalCombination extends LinearOpMode {
     static final double DEADZONE = 0.1;
     private boolean goingUp = false;
     private double pos = 0.284;
-    private double targetRPM = 1500;
+    private double targetRPM = 0;
     private boolean xToggle = false; //to toggle between fast and slow motor speeds, false = slow
+    private double turn = 0;
+    private double distance = 0;
+    // Timer to track how long the flywheel RPM has been stable
+    private ElapsedTime rpmStableTimer = new ElapsedTime();
+
+    // States for the Aim-and-Shoot subroutine
+    private enum AimState {
+        IDLE,       // Doing nothing
+        AIMING,     // Robot is turning to face the tag
+        SPINNING_UP,
+        SHOOTING    // Robot is aimed, now shooting
+    }    // Variable to track the current state
+
+    private AimState currentAimState = AimState.IDLE;
+
 
     @Override
     public void runOpMode() {
@@ -128,21 +145,105 @@ public class RobotFinalCombination extends LinearOpMode {
         int position= 0;
         double targetAngle = 0;
 
+
         while (opModeIsActive()) {
+
+            //LimeLight
+
+            LLResult result = limelight.getLatestResult();
+            if (result.isValid()) {
+                // distance is calculated based on linear regression with the equation Ta = distance
+                double distance = Math.pow((result.getTa()/9946.27),-0.560091);
+
+            } else {
+                telemetry.addData("Limelight", "No data available");
+            }
 
             //New Swerve Drive Logic to incorporate Turning while strafing
             // 1. Capture Joystick Inputs
             double lx = gamepad1.left_stick_x;
             double ly = -gamepad1.left_stick_y;
-            double turn;
+            double turn = 0;
+
+
+
+
+            // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
+            switch (currentAimState) {
+                case IDLE:
+                    // If 'A' is pressed, start the aiming process
+                    if (gamepad1.aWasPressed()) {
+                        currentAimState = AimState.AIMING;
+                    }
+                    break;
+
+                case AIMING:
+                    // Use the auto-aim logic to turn the robot
+                    turn = pointAtTag();
+
+                    // Check if we are successfully aimed at the target
+                    if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 2 degrees
+                        // If aimed, move to the next state and shoot
+                        rpmStableTimer.reset();
+                        currentAimState = AimState.SPINNING_UP;
+
+                    }
+
+                    // If 'A' is pressed again, cancel the routine
+                    if (gamepad1.aWasPressed()) {
+                        currentAimState = AimState.IDLE;
+                    }
+                    break;
+
+                case SPINNING_UP:
+                    // In this state, we are aimed, but waiting for the flywheel to be stable.
+                    // Keep the robot aimed at the tag in case it drifts.
+                    turn = pointAtTag();
+
+                    // Get the current flywheel velocity in RPM
+                    double currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
+
+                    // Check if the flywheel is within the desired speed range (e.g., 95% of target)
+                    if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
+                        // If the speed has been stable for 500ms, move to the SHOOTING state.
+                        if (rpmStableTimer.milliseconds() >= 500) {
+                            currentAimState = AimState.SHOOTING;
+                        }
+                    } else {
+                        // If the speed drops out of range, reset the stability timer.
+                        rpmStableTimer.reset();
+                    }
+
+                    // Allow the driver to cancel
+                    if (gamepad1.aWasPressed()) {
+                        flywheel.setVelocity(0);
+                        currentAimState = AimState.IDLE;
+                    }
+                    break;
+
+                case SHOOTING:
+                    shootTheBall(); // This will move the servo
+                    currentAimState = AimState.IDLE;
+                    break;
+            }
+
+
+
 
             //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
-            if (gamepad1.right_bumper) {
-                turn = pointAtTag();
-            } else {
-                turn = gamepad1.right_stick_x;
-                aimPid.reset(); // Reset PID memory when not in use
+            //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
+            // Make sure the state machine is not running before allowing manual control
+            if (currentAimState == AimState.IDLE) {
+                if (gamepad1.right_bumper) {
+                    turn = pointAtTag();
+                } else {
+                    turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
+                    aimPid.reset(); // Reset PID memory when not in use
+                }
             }
+
+            //Aim and Fire Ball
+
 
             // 2. Define Rotation Vectors
             // For a 2-module robot to spin, one wheel points "up/left" and the other "up/right"
@@ -221,23 +322,12 @@ public class RobotFinalCombination extends LinearOpMode {
 
 
 
-            //LimeLight
-            LLResult result = limelight.getLatestResult();
-            if (result.isValid()) {
-                // distance is calculated based on linear regression with the equation Ta = distance
-                double distance = Math.pow((result.getTa()/10295.76),-0.5566);
-                telemetry.addData("distance:", "%.2f", distance);
-                telemetry.addData("tx", result.getTx());
-                telemetry.addData("ta", result.getTa());
 
-            } else {
-                telemetry.addData("Limelight", "No data available");
-            }
 
 
 
             //Intake
-            double intakePower = gamepad1.left_trigger-gamepad1.right_trigger;
+            double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
             if (intakePower > 0.1) {
                 intake.setPower(-1.0);
                 leftPusher.setPower(-1.0);
@@ -256,6 +346,14 @@ public class RobotFinalCombination extends LinearOpMode {
             }
 
 
+
+            //flywheel manual control
+            if (gamepad1.dpadDownWasPressed()){
+                targetRPM = 2000;
+            }
+            if (gamepad1.dpadUpWasPressed()){
+                targetRPM = 0;
+            }
             //Flywheel - right now manually adjusted
             if (gamepad1.dpad_right) {
                 targetRPM += STEP;
@@ -276,12 +374,12 @@ public class RobotFinalCombination extends LinearOpMode {
             // Apply velocity
             flywheel.setVelocity(targetTPS);
 
-
-
-            //Fire Ball
-            if (gamepad1.aWasPressed()) {
+            //singlebutton shoot only
+            if (gamepad1.bWasPressed()){
                 shootTheBall();
             }
+
+
 
             // Deadzone
             if (magLeft < DEADZONE && magRight < DEADZONE) {
@@ -291,6 +389,10 @@ public class RobotFinalCombination extends LinearOpMode {
                 rightTurn.setVelocity(0);
             }
 
+
+            if (gamepad1.leftBumperWasPressed()) {
+                aimPid.setF(aimPid.getF()+ 0.005);
+            }
 
             //Dashboard Graphing
             double currentLeftDrive  = leftDrive.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
@@ -312,14 +414,21 @@ public class RobotFinalCombination extends LinearOpMode {
 
 
             // Telemetry
+            telemetry.addData("kP", aimPid.getP());
+            telemetry.addData("kF", aimPid.getF());
             telemetry.addData("IntakePower", intakePower);
             // Update these lines at the bottom of your loop
+            telemetry.addData("flywheel RPM", targetRPM);
             telemetry.addData("Left Target Angle", targetAngleLeft);
             telemetry.addData("Right Target Angle", targetAngleRight);
             telemetry.addData("Left Move To", moveLeft);
             telemetry.addData("Right Move To", moveRight);
             telemetry.addData("Left Current Deg", leftCurrentDegrees);
             telemetry.addData("Right Current Deg", rightCurrentDegrees);
+            telemetry.addData("distance:", "%.2f", distance);
+            telemetry.addData("tx", result.getTx());
+            telemetry.addData("ta", result.getTa());
+
 
             //telemetry.addData("Raw mag", rawMag);
             //telemetry.addData("Mag", mag);
