@@ -70,13 +70,13 @@ public class RobotFinalCombination extends LinearOpMode {
 
     // States for the Aim-and-Shoot subroutine
     private enum AimState {
-        IDLE,       // Doing nothing
+        DRIVING,       // Doing nothing
         AIMING,     // Robot is turning to face the tag
         SPINNING_UP,
         SHOOTING    // Robot is aimed, now shooting
     }    // Variable to track the current state
 
-    private AimState currentAimState = AimState.IDLE;
+    private AimState currentAimState = AimState.DRIVING;
 
 
     @Override
@@ -170,7 +170,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
             switch (currentAimState) {
-                case IDLE:
+                case DRIVING:
                     // If 'A' is pressed, start the aiming process
                     if (gamepad1.aWasPressed()) {
                         currentAimState = AimState.AIMING;
@@ -191,7 +191,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
                     // If 'A' is pressed again, cancel the routine
                     if (gamepad1.aWasPressed()) {
-                        currentAimState = AimState.IDLE;
+                        currentAimState = AimState.DRIVING;
                     }
                     break;
 
@@ -217,13 +217,13 @@ public class RobotFinalCombination extends LinearOpMode {
                     // Allow the driver to cancel
                     if (gamepad1.aWasPressed()) {
                         flywheel.setVelocity(0);
-                        currentAimState = AimState.IDLE;
+                        currentAimState = AimState.DRIVING;
                     }
                     break;
 
                 case SHOOTING:
                     shootTheBall(); // This will move the servo
-                    currentAimState = AimState.IDLE;
+                    currentAimState = AimState.DRIVING;
                     break;
             }
 
@@ -233,7 +233,7 @@ public class RobotFinalCombination extends LinearOpMode {
             //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
             //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
             // Make sure the state machine is not running before allowing manual control
-            if (currentAimState == AimState.IDLE) {
+            if (currentAimState == AimState.DRIVING) {
                 if (gamepad1.right_bumper) {
                     turn = pointAtTag();
                 } else {
