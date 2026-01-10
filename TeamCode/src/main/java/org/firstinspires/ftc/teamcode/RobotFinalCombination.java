@@ -4,6 +4,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import java.util.ArrayList;
@@ -34,11 +35,11 @@ public class RobotFinalCombination extends LinearOpMode {
     private Servo light;
     private Limelight3A limelight;
     private Servo feederLever = null;
-    //private DigitalChannel laserInput;
+    private DigitalChannel laserInput;
 
     //PID Controller for Aiming
-    private PIDFController aimPid = new PIDFController(0.025, 0.0, 0.0, 0.01);
-
+    private PIDFController aimPid = new PIDFController(0.025, 0.0, 0.0, 0.02);
+    private PIDFController flywheelPID = new PIDFController(90,0,0,20);
     private static final double MAX_RPM = 5000;
     private static final double MIN_RPM = 0;
 
@@ -94,7 +95,7 @@ public class RobotFinalCombination extends LinearOpMode {
         light = hardwareMap.get(Servo.class, "light");
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
         feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
-        //laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
+        laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
         light  = hardwareMap.get(Servo.class, "light");
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -130,6 +131,8 @@ public class RobotFinalCombination extends LinearOpMode {
         limelight.pipelineSwitch(0);
         limelight.start();
 
+        laserInput.setMode(DigitalChannel.Mode.INPUT); // <-- ADD THIS LINE
+
         telemetry.addData(">", "Robot Ready.  Press Play.");
         telemetry.update();
 
@@ -149,15 +152,35 @@ public class RobotFinalCombination extends LinearOpMode {
         while (opModeIsActive()) {
 
             //LimeLight
+            // Read the beam break sensor
+            // We'll assume 'true' means a ball is present (beam is broken)
+
+            //light.setPosition(0.30);
 
             LLResult result = limelight.getLatestResult();
-            if (result.isValid()) {
-                // distance is calculated based on linear regression with the equation Ta = distance
-                double distance = Math.pow((result.getTa()/9946.27),-0.560091);
+            boolean isBallLoaded = laserInput.getState();
+
+            if (!result.isValid()) {
+                // If we can't see a tag, the light should always be RED.
+                light.setPosition(0.27);
+                telemetry.addData("Limelight", "No data available");
 
             } else {
-                telemetry.addData("Limelight", "No data available");
+                // If we get here, we know we have a valid target.
+                // Now, check if a ball is loaded to decide between GREEN and BLUE.
+                if (isBallLoaded) {
+                    // Valid target AND ball loaded = GREEN (Ready to shoot)
+                    light.setPosition(0.50);
+
+                } else {
+                    // Valid target BUT no ball loaded = BLUE (Ready to aim/load)
+                    light.setPosition(0.66);
+                }
+
+                // This distance calculation should only happen when the result is valid.
+                distance = Math.pow((result.getTa()/9946.27),-0.560091);
             }
+
 
             //New Swerve Drive Logic to incorporate Turning while strafing
             // 1. Capture Joystick Inputs
@@ -184,6 +207,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     // Check if we are successfully aimed at the target
                     if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 2 degrees
                         // If aimed, move to the next state and shoot
+                        targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
                         rpmStableTimer.reset();
                         currentAimState = AimState.SPINNING_UP;
 
@@ -199,10 +223,17 @@ public class RobotFinalCombination extends LinearOpMode {
                     // In this state, we are aimed, but waiting for the flywheel to be stable.
                     // Keep the robot aimed at the tag in case it drifts.
                     turn = pointAtTag();
+                     // <-- Add one more ')' here
 
                     // Get the current flywheel velocity in RPM
-                    double currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
 
+                    double currentTPS = flywheel.getVelocity();
+                    double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
+                    double pidOutput = flywheelPID.calculate(targetTPS, currentTPS);
+                    double motorVelocity = targetTPS + pidOutput;
+                    flywheel.setVelocity(motorVelocity);
+
+                    double currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
                     // Check if the flywheel is within the desired speed range (e.g., 95% of target)
                     if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
                         // If the speed has been stable for 500ms, move to the SHOOTING state.
@@ -230,7 +261,6 @@ public class RobotFinalCombination extends LinearOpMode {
 
 
 
-            //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
             //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
             // Make sure the state machine is not running before allowing manual control
             if (currentAimState == AimState.DRIVING) {
@@ -428,6 +458,7 @@ public class RobotFinalCombination extends LinearOpMode {
             telemetry.addData("distance:", "%.2f", distance);
             telemetry.addData("tx", result.getTx());
             telemetry.addData("ta", result.getTa());
+            telemetry.addData("Ball Loaded?", isBallLoaded);
 
 
             //telemetry.addData("Raw mag", rawMag);
