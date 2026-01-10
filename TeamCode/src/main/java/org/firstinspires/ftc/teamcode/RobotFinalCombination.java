@@ -5,6 +5,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import java.util.ArrayList;
@@ -38,8 +39,9 @@ public class RobotFinalCombination extends LinearOpMode {
     private DigitalChannel laserInput;
 
     //PID Controller for Aiming
-    private PIDFController aimPid = new PIDFController(0.025, 0.0, 0.0, 0.02);
-    private PIDFController flywheelPID = new PIDFController(90,0,0,20);
+    private PIDFController aimPid = new PIDFController(0.025, 0.0, 0.003, 0.02);
+    //private PIDFController flywheelPID = new PIDFController(110,0,0,14);
+    private PIDFCoefficients pidf = new PIDFCoefficients(110,0,0,14);
     private static final double MAX_RPM = 5000;
     private static final double MIN_RPM = 0;
 
@@ -68,12 +70,14 @@ public class RobotFinalCombination extends LinearOpMode {
     private double distance = 0;
     // Timer to track how long the flywheel RPM has been stable
     private ElapsedTime rpmStableTimer = new ElapsedTime();
-
+    // Timer to track how long a ball has been loaded
+    private ElapsedTime ballLoadedTimer = new ElapsedTime();
     // States for the Aim-and-Shoot subroutine
     private enum AimState {
         DRIVING,       // Doing nothing
         AIMING,     // Robot is turning to face the tag
         SPINNING_UP,
+        CHECK_FOR_BALL,
         SHOOTING    // Robot is aimed, now shooting
     }    // Variable to track the current state
 
@@ -100,6 +104,7 @@ public class RobotFinalCombination extends LinearOpMode {
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,pidf);
 
         //Motor Parameter Setup
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -162,7 +167,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
             if (!result.isValid()) {
                 // If we can't see a tag, the light should always be RED.
-                light.setPosition(0.27);
+                light.setPosition(0.30);
                 telemetry.addData("Limelight", "No data available");
 
             } else {
@@ -227,18 +232,18 @@ public class RobotFinalCombination extends LinearOpMode {
 
                     // Get the current flywheel velocity in RPM
 
-                    double currentTPS = flywheel.getVelocity();
+
                     double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
-                    double pidOutput = flywheelPID.calculate(targetTPS, currentTPS);
-                    double motorVelocity = targetTPS + pidOutput;
-                    flywheel.setVelocity(motorVelocity);
+
+                    flywheel.setVelocity(targetTPS);
 
                     double currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
                     // Check if the flywheel is within the desired speed range (e.g., 95% of target)
                     if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
                         // If the speed has been stable for 500ms, move to the SHOOTING state.
                         if (rpmStableTimer.milliseconds() >= 500) {
-                            currentAimState = AimState.SHOOTING;
+                            currentAimState = AimState.CHECK_FOR_BALL;
+                            ballLoadedTimer.reset();
                         }
                     } else {
                         // If the speed drops out of range, reset the stability timer.
@@ -251,6 +256,42 @@ public class RobotFinalCombination extends LinearOpMode {
                         currentAimState = AimState.DRIVING;
                     }
                     break;
+
+                case CHECK_FOR_BALL:
+                    // In this state, we are aimed and the flywheel is spinning.
+                    // We are now waiting for a ball to be loaded.
+
+                    // Keep the robot aimed at the tag in case it drifts.
+                    turn = pointAtTag();
+
+                    if (isBallLoaded) {
+                        // A ball has been loaded! Turn off the intake and move to SHOOTING.
+                        if (ballLoadedTimer.milliseconds() >= 500) {
+                            // The ball is stable. Turn off the intake and move to SHOOTING.
+                            intake.setPower(0);
+                            leftPusher.setPower(0);
+                            rightPusher.setPower(0);
+                            currentAimState = AimState.SHOOTING;
+                        }
+                    } else {
+                        // No ball is loaded yet. Run the intake motors to pull one in.
+                        // The state will remain CHECK_FOR_BALL until isBallLoaded becomes true.
+                        intake.setPower(-1.0);
+                        leftPusher.setPower(-1.0);
+                        rightPusher.setPower(-1.0);
+                        ballLoadedTimer.reset();
+                    }
+
+                    // Allow the driver to cancel the entire routine.
+                    if (gamepad1.aWasPressed()) {
+                        flywheel.setVelocity(0);
+                        intake.setPower(0);
+                        leftPusher.setPower(0);
+                        rightPusher.setPower(0);
+                        currentAimState = AimState.DRIVING;
+                    }
+                    break;
+
 
                 case SHOOTING:
                     shootTheBall(); // This will move the servo
