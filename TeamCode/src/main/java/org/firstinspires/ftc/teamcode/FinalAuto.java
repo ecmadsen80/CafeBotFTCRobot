@@ -84,7 +84,7 @@ import com.qualcomm.robotcore.util.Range;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="New Auto", group="Linear OpMode")
+@Autonomous(name="Auto (Near Tower)", group="Linear OpMode")
 
 public class FinalAuto extends LinearOpMode {
 
@@ -122,6 +122,9 @@ public class FinalAuto extends LinearOpMode {
         limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
         pusher = hardwareMap.get(DcMotor.class, "rightpusher");
         pusher1 = hardwareMap.get(DcMotor.class, "leftpusher");
+        light = hardwareMap.get(Servo.class, "light");
+
+
             //intake.setDirection(DcMotor.Direction.FORWARD);light  = hardwareMap.get(Servo.class, "blink");
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -165,6 +168,7 @@ public class FinalAuto extends LinearOpMode {
         boolean foundResult = false;
         boolean positionFound = false;
         double distance = 0;
+        double pos = 0.234;
         boolean stop = false;
 
 
@@ -172,10 +176,11 @@ public class FinalAuto extends LinearOpMode {
         while (opModeIsActive()) {
             if (runtime.seconds() > 60) {
                 SHOOTHEBALLS();
+                SHOOTHEBALLS();
                 stop = true;
             }
             flywheel.setPower(1.0);
-            flywheel.setVelocity(2600/60*28);
+            flywheel.setVelocity(2760/60*28);
             LLResult result = limelight.getLatestResult();
             leftDrive.setPower(0.3);
             rightDrive.setPower(-0.3);
@@ -209,6 +214,7 @@ public class FinalAuto extends LinearOpMode {
             //fires if in correct position
             if (positionFound && !stop){
                 SHOOTHEBALLS();
+                SHOOTHEBALLS();
                 stop = true;
             }
 
@@ -233,10 +239,9 @@ public class FinalAuto extends LinearOpMode {
         pusher.setPower(-1.0);
         pusher1.setPower(-1.0);
         sleepSeconds(1);
-        //pusher.setPosition(0.0);
-        sleepSeconds(1);
         feederLever.setPosition(0.0);
-        sleepSeconds(2);
+        sleepSeconds(1);
+        feederLever.setPosition(1.0);
 
     }
 
