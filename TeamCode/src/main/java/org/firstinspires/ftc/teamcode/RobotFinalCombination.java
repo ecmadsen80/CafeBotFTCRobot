@@ -2,13 +2,18 @@ package org.firstinspires.ftc.teamcode;
 
 
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import java.util.ArrayList;
+import java.util.List;
+
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -16,6 +21,9 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import com.seattlesolvers.solverslib.controller.PIDFController;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 
 @TeleOp(name="A Working TeleOp", group="Linear OpMode")
@@ -37,9 +45,10 @@ public class RobotFinalCombination extends LinearOpMode {
     private Limelight3A limelight;
     private Servo feederLever = null;
     private DigitalChannel laserInput;
+    private IMU imu;
 
     //PID Controller for Aiming
-    private PIDFController aimPid = new PIDFController(0.025, 0.0, 0.003, 0.02);
+    private PIDFController aimPid = new PIDFController(0.02, 0.0, 0.01, 0.02);
     //private PIDFController flywheelPID = new PIDFController(110,0,0,14);
     private PIDFCoefficients pidf = new PIDFCoefficients(110,0,0,14);
     private static final double MAX_RPM = 5000;
@@ -49,6 +58,9 @@ public class RobotFinalCombination extends LinearOpMode {
     private static final double TICKS_PER_REV = 28.0;
 
     private static final double RIGHT_STICK_ADJUSTER = 0.7;
+
+    private static final int RED_APRIL_TAG = 24;
+    private static final int BLUE_APRIL_TAG = 20;
 
 
 
@@ -134,9 +146,20 @@ public class RobotFinalCombination extends LinearOpMode {
 
         //Limelight initialization
         limelight.pipelineSwitch(0);
+
         limelight.start();
 
         laserInput.setMode(DigitalChannel.Mode.INPUT); // <-- ADD THIS LINE
+
+        //IMU initialization
+        imu = hardwareMap.get(IMU.class, "imu");
+
+        RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.DOWN;
+        RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  = RevHubOrientationOnRobot.UsbFacingDirection.LEFT;
+
+        RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(logoDirection, usbDirection);
+
+        imu.initialize(new IMU.Parameters(orientationOnRobot));
 
         telemetry.addData(">", "Robot Ready.  Press Play.");
         telemetry.update();
@@ -164,6 +187,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
             LLResult result = limelight.getLatestResult();
             boolean isBallLoaded = laserInput.getState();
+            flywheel.setVelocity((1500/60)*TICKS_PER_REV);
 
             if (!result.isValid()) {
                 // If we can't see a tag, the light should always be RED.
@@ -193,7 +217,9 @@ public class RobotFinalCombination extends LinearOpMode {
             double ly = -gamepad1.left_stick_y;
             double turn = 0;
 
-
+            if (gamepad1.startWasPressed()) {
+                aimPid.setD(aimPid.getD() + 0.005); // Increment D by a small amount
+            }
 
 
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
@@ -481,14 +507,37 @@ public class RobotFinalCombination extends LinearOpMode {
 
             dashboard.sendTelemetryPacket(packet);
 
+            // --- Field Position and Heading Acquisition ---
+            double robotX = 0;
+            double robotY = 0;
+            double robotHeading = 0;
+            double robotHeadingMT2 = 0;
 
+            // Get Yaw (Heading) from the IMU for stability and low latency
+            robotHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+
+            //YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
+            limelight.updateRobotOrientation(robotHeading);
+            result = limelight.getLatestResult();
+            Pose3D botpose = result.getBotpose_MT2();
+
+
+            // Optional: Reset IMU heading to zero if the Back button is pressed
+            if (gamepad1.backWasPressed()) {
+                imu.resetYaw();
+            }
+
+            //LL wants the z-axis to be zero when the robot is facing from the blue goal towards
+            //the red goal. When that is put in and the robot is placed on the tip of the triangle in
+            //the middle of the field, it reads (0,-2.6) when pointed at one april tag and (-2.6,0) when
+            //pointed at the other.
 
 
             // Telemetry
-            telemetry.addData("kP", aimPid.getP());
-            telemetry.addData("kF", aimPid.getF());
-            telemetry.addData("IntakePower", intakePower);
-            // Update these lines at the bottom of your loop
+            //telemetry.addData("kP", aimPid.getP());
+            //telemetry.addData("kF", aimPid.getF());
+            //telemetry.addData("IntakePower", intakePower);
+            //telemetry.addData("Flywheel RPM", flywheel.getVelocity)
             telemetry.addData("flywheel RPM", targetRPM);
             telemetry.addData("Left Target Angle", targetAngleLeft);
             telemetry.addData("Right Target Angle", targetAngleRight);
@@ -500,7 +549,14 @@ public class RobotFinalCombination extends LinearOpMode {
             telemetry.addData("tx", result.getTx());
             telemetry.addData("ta", result.getTa());
             telemetry.addData("Ball Loaded?", isBallLoaded);
-
+            // ... inside the telemetry block at the end            telemetry.addData("Aim PID kP", aimPid.getP());
+            telemetry.addData("Aim PID kD", aimPid.getD()); //  <-- ADD THIS LINE
+            telemetry.addData("Robot X", robotX);
+            telemetry.addData("Robot Y", robotY);
+            telemetry.addData("robot Heading IMU", robotHeading);
+            telemetry.addData("robot Heading MT2", robotHeadingMT2);
+            telemetry.addData("botpose", botpose.toString());
+            telemetry.addData("Angle bot is from April Tag", angleFromAprilTag());
 
             //telemetry.addData("Raw mag", rawMag);
             //telemetry.addData("Mag", mag);
@@ -538,10 +594,14 @@ public class RobotFinalCombination extends LinearOpMode {
     private double pointAtTag() {
         LLResult result = limelight.getLatestResult();
 
+
         if (result != null && result.isValid()) {
             // SolversLib uses calculate(target, current)
             // We want the horizontal offset (tx) to be 0
-            double pidOutput = aimPid.calculate(0, result.getTx());
+            double target = result.getTx();
+
+
+            double pidOutput = aimPid.calculate(0, target);
             return Range.clip(pidOutput, -1.0, 1.0);
         }
 
@@ -549,6 +609,52 @@ public class RobotFinalCombination extends LinearOpMode {
         return 0;
     }
 
+    private double angleFromAprilTag(){
+
+        double angleFromTagDeg = 0;
+        LLResult result = limelight.getLatestResult();
+
+        if (result != null && result.isValid()) {
+            // Get the list of all visible tags
+            List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
+                for (LLResultTypes.FiducialResult fr : fiducials) {
+                    if (fr.getFiducialId() == RED_APRIL_TAG) {
+                        telemetry.addData("Red April Tag", "Found");
+                        Pose3D targetPose = fr.getRobotPoseTargetSpace();
+                        double x = targetPose.getPosition().x; // camera X in tag frame
+                        double y = targetPose.getPosition().y; // camera Y in tag frame
+                        double z = targetPose.getPosition().z;
+                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);.
+
+                        // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
+                        angleFromTagDeg = Math.toDegrees(Math.atan2(y, x));
+                        telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
+                        telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
+                        telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+                        break;
+
+                    } else if (fr.getFiducialId() == BLUE_APRIL_TAG) {
+                        telemetry.addData("Blue April Tag", "Found");
+
+                        Pose3D targetPose = fr.getRobotPoseTargetSpace();
+
+                        double x = targetPose.getPosition().x; // camera X in tag frame
+                        double y = targetPose.getPosition().y; // camera Y in tag frame
+                        double z = targetPose.getPosition().z;
+                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);.
+
+                        // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
+                        angleFromTagDeg = Math.toDegrees(Math.atan2(y, x));
+                        telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
+                        telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
+                        telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+                        break;
+                    }
+            }
+        }
+
+        return angleFromTagDeg;
+    }
 
 
 
