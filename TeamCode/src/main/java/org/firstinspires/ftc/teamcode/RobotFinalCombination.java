@@ -624,7 +624,7 @@ public class RobotFinalCombination extends LinearOpMode {
                         double x = targetPose.getPosition().x; // camera X in tag frame
                         double y = targetPose.getPosition().y; // camera Y in tag frame
                         double z = targetPose.getPosition().z;
-                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);.
+                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
 
                         // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
                         angleFromTagDeg = Math.toDegrees(Math.atan2(y, x));
@@ -641,7 +641,7 @@ public class RobotFinalCombination extends LinearOpMode {
                         double x = targetPose.getPosition().x; // camera X in tag frame
                         double y = targetPose.getPosition().y; // camera Y in tag frame
                         double z = targetPose.getPosition().z;
-                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);.
+                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
 
                         // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
                         angleFromTagDeg = Math.toDegrees(Math.atan2(y, x));
