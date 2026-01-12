@@ -64,7 +64,6 @@ public class RobotFinalCombination extends LinearOpMode {
 
 
 
-    ArrayList<Float> myList = new ArrayList<>();
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
     static final double TURN_POWER = 1;
 
@@ -74,11 +73,10 @@ public class RobotFinalCombination extends LinearOpMode {
     // the PID controller
     static final double TURN_VELOCITY = 2500; //i set to 1000 to move slower
     static final double DEADZONE = 0.1;
-    private boolean goingUp = false;
-    private double pos = 0.284;
+    //private double pos = 0.284;
     private double targetRPM = 0;
     private boolean xToggle = false; //to toggle between fast and slow motor speeds, false = slow
-    private double turn = 0;
+    //private double turn = 0;
     private double distance = 0;
     // Timer to track how long the flywheel RPM has been stable
     private ElapsedTime rpmStableTimer = new ElapsedTime();
@@ -173,8 +171,7 @@ public class RobotFinalCombination extends LinearOpMode {
         leftTurn.setPower(1.0); //I'm not sure why this is here
         rightTurn.setPower(1.0); //Ditto
 
-        int position= 0;
-        double targetAngle = 0;
+
 
 
         while (opModeIsActive()) {
@@ -187,7 +184,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
             LLResult result = limelight.getLatestResult();
             boolean isBallLoaded = laserInput.getState();
-            flywheel.setVelocity((1500/60)*TICKS_PER_REV);
+            flywheel.setVelocity((1500.0/60.0)*TICKS_PER_REV);
 
             if (!result.isValid()) {
                 // If we can't see a tag, the light should always be RED.
