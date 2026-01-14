@@ -192,8 +192,8 @@ public class UpdatedFinalAutoSad extends LinearOpMode {
             flywheel.setPower(1.0);
             flywheel.setVelocity(2760 / 60 * 28);
             LLResult result = limelight.getLatestResult();
-            leftDrive.setPower(0.4);
-            rightDrive.setPower(-0.4);
+            //leftDrive.setPower(0.4);
+            //rightDrive.setPower(-0.4);
 
             //Positions Robot at 134cm
             if (!result.isValid() && !foundResult) {
