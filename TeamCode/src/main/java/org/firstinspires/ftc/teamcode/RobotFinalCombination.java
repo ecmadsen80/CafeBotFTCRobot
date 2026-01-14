@@ -184,7 +184,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
             LLResult result = limelight.getLatestResult();
             boolean isBallLoaded = laserInput.getState();
-            flywheel.setVelocity((1500.0/60.0)*TICKS_PER_REV);
+            //flywheel.setVelocity((1500.0/60.0)*TICKS_PER_REV);
 
             if (!result.isValid()) {
                 // If we can't see a tag, the light should always be RED.
@@ -236,6 +236,9 @@ public class RobotFinalCombination extends LinearOpMode {
                     if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 2 degrees
                         // If aimed, move to the next state and shoot
                         targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
+                        if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
+                            targetRPM *= 0.9;
+                        }
                         rpmStableTimer.reset();
                         currentAimState = AimState.SPINNING_UP;
 
@@ -624,7 +627,7 @@ public class RobotFinalCombination extends LinearOpMode {
                         double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
 
                         // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
-                        angleFromTagDeg = Math.toDegrees(Math.atan2(y, x));
+                        angleFromTagDeg = Math.toDegrees(Math.atan2(x, z)) + 180;
                         telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
                         telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
                         telemetry.addData("angleFromTagDeg", angleFromTagDeg);
@@ -641,7 +644,7 @@ public class RobotFinalCombination extends LinearOpMode {
                         double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
 
                         // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
-                        angleFromTagDeg = Math.toDegrees(Math.atan2(y, x));
+                        angleFromTagDeg = 180 - (Math.toDegrees(Math.atan2(x, z)));
                         telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
                         telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
                         telemetry.addData("angleFromTagDeg", angleFromTagDeg);

@@ -38,7 +38,7 @@ public class BackAutoBlue extends LinearOpMode {
     // ==========================
     // EASY-TO-TUNE TIMES (SECONDS)
     // ==========================
-    private static final double BACK_UP_TIME = 3.0;
+    private static final double BACK_UP_TIME = 3.5;
     private static final double TURN_TIME    = 0.35;
 
     // ==========================
@@ -110,6 +110,9 @@ public class BackAutoBlue extends LinearOpMode {
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
+        double distance = 0;
+        double targetRPM = 0;
+
         waitForStart();
         runtime.reset();
 
@@ -138,11 +141,15 @@ public class BackAutoBlue extends LinearOpMode {
                     leftDrive.setPower(-0.30);
                     rightDrive.setPower(-0.30);
                     LLResult result = limelight.getLatestResult();
+
                     telemetry.addLine(Boolean.toString(result.isValid()));
                     if (result.isValid()) {
+
                         if (result.getTx() < 0) {
                             leftDrive.setPower(0);
                             rightDrive.setPower(0);
+                            distance = Math.pow((result.getTa()/9946.27),-0.560091);
+                            targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
                             runtime.reset();
                             state = AutoState.SHOOT;
                         }
@@ -151,7 +158,8 @@ public class BackAutoBlue extends LinearOpMode {
 
                 // --------------------------
                 case SHOOT:
-                    flywheel.setVelocity(2760 / 60.0 * 28.0);
+
+                    flywheel.setVelocity(targetRPM);
                     sleepSeconds(2);
                     SHOOTHEBALLS();
                     SHOOTHEBALLS();
