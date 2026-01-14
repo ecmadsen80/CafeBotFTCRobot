@@ -315,16 +315,12 @@ public class UpdatedFinalAutoSad extends LinearOpMode {
                 rightDrive.setPower(-0.3);
                 return false;
             }
+        }
 
             // If we can't see the tag, we can't aim. Stop motors for safety.
             leftDrive.setPower(0);
             rightDrive.setPower(0);
             return false;
-        }
-        else {
-            return false;
-        }
-
     }
 }
 
