@@ -67,6 +67,7 @@ public class RobotFinalCombination extends LinearOpMode {
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
     static final double TURN_POWER = 1;
 
+
     // Max Velocity (in TPS) = (Max RPM * PPR for that gearing)/60
     // for GoBuilda 5204 223 RPM motor with 751.8 PPR = 2794.19
     // AI suggested that max is typically around 2500 (90% of max) for "headroom" for
@@ -92,6 +93,7 @@ public class RobotFinalCombination extends LinearOpMode {
     }    // Variable to track the current state
 
     private AimState currentAimState = AimState.DRIVING;
+    private int shotsFired = 0;
 
 
     @Override
@@ -222,7 +224,6 @@ public class RobotFinalCombination extends LinearOpMode {
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
             switch (currentAimState) {
                 case DRIVING:
-                    flywheel.setVelocity((2000 / 60.0) * TICKS_PER_REV);
                     // If 'A' is pressed, start the aiming process
                     if (gamepad1.aWasPressed()) {
                         currentAimState = AimState.AIMING;
@@ -237,6 +238,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 2 degrees
                         // If aimed, move to the next state and shoot
                         targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
+                        targetRPM = 1.02*targetRPM;
                         if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
                             targetRPM *= 0.9;
                         }
@@ -268,7 +270,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     // Check if the flywheel is within the desired speed range (e.g., 95% of target)
                     if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
                         // If the speed has been stable for 500ms, move to the SHOOTING state.
-                        if (rpmStableTimer.milliseconds() >= 250) {
+                        if (rpmStableTimer.milliseconds() >= 150) {
                             currentAimState = AimState.CHECK_FOR_BALL;
                             ballLoadedTimer.reset();
                         }
@@ -293,7 +295,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
                     if (isBallLoaded) {
                         // A ball has been loaded! Turn off the intake and move to SHOOTING.
-                        if (ballLoadedTimer.milliseconds() >= 250) {
+                        if (ballLoadedTimer.milliseconds() >= 150) {
                             // The ball is stable. Turn off the intake and move to SHOOTING.
                             intake.setPower(0);
                             leftPusher.setPower(0);
@@ -322,8 +324,20 @@ public class RobotFinalCombination extends LinearOpMode {
 
                 case SHOOTING:
                     shootTheBall(); // This will move the servo
-                    currentAimState = AimState.DRIVING;
+                    shotsFired++;
+
+                    if (shotsFired >= 3){
+                        currentAimState = AimState.DRIVING;
+                        flywheel.setVelocity(0);
+                    } else {
+                        currentAimState = AimState.CHECK_FOR_BALL;
+                        ballLoadedTimer.reset();
+                    }
+                    if (gamepad1.aWasPressed()) {
+                        currentAimState = AimState.DRIVING;
+                    }
                     break;
+
             }
 
 
@@ -441,12 +455,6 @@ public class RobotFinalCombination extends LinearOpMode {
                 intake.setPower(0.0);
                 leftPusher.setPower(0);
                 rightPusher.setPower(0);
-            }
-
-            if (gamepad1.left_bumper) {
-                flywheel.setVelocity((100 / 60.0) * TICKS_PER_REV);
-                flywheel.setPower(-0.5);
-                sleepSeconds((1));
             }
 
 
