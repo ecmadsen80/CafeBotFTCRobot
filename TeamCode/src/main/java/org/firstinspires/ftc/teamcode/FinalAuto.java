@@ -275,13 +275,13 @@ public class FinalAuto extends LinearOpMode {
                 return true; // Aiming is complete
 
             } else if (result.getTx() > AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(0.4);
-                rightDrive.setPower(0.4);
+                leftDrive.setPower(-0.4);
+                rightDrive.setPower(-0.4);
                 return false; // Aiming is still in progress
 
             } else if (result.getTx() < -AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(-0.4);
-                rightDrive.setPower(-0.4);
+                leftDrive.setPower(0.4);
+                rightDrive.setPower(0.4);
                 return false;
             }
         }
