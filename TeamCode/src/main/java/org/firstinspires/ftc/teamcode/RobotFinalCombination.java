@@ -295,7 +295,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
                     if (isBallLoaded) {
                         // A ball has been loaded! Turn off the intake and move to SHOOTING.
-                        if (ballLoadedTimer.milliseconds() >= 150) {
+                        if (ballLoadedTimer.milliseconds() >= 250) {
                             // The ball is stable. Turn off the intake and move to SHOOTING.
                             intake.setPower(0);
                             leftPusher.setPower(0);
@@ -329,6 +329,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     if (shotsFired >= 3){
                         currentAimState = AimState.DRIVING;
                         flywheel.setVelocity(0);
+                        shotsFired = 0;
                     } else {
                         currentAimState = AimState.CHECK_FOR_BALL;
                         ballLoadedTimer.reset();
