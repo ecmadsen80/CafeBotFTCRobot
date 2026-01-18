@@ -179,6 +179,7 @@ public class FinalAuto extends LinearOpMode {
                 rightDrive.setPower(0.0);
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
+                SHOOTHEBALLS();
                 intake.setPower(0.0);
                 pusher.setPower(0.0);
                 pusher1.setPower(0.0);
@@ -222,6 +223,8 @@ public class FinalAuto extends LinearOpMode {
                 while (!aimAtTag()) {
 
                 }
+                sleepSeconds((2));
+                SHOOTHEBALLS();
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
                 intake.setPower(0.0);
@@ -247,21 +250,22 @@ public class FinalAuto extends LinearOpMode {
         leftDrive.setPower(0.0);
         rightDrive.setPower(0.0);
         sleepSeconds(1);
-        feederLever.setPosition(0.0); //fires one ball
-        sleepSeconds(1);
         feederLever.setPosition(1.0);
-        intake.setPower(-1.0);
-        pusher.setPower(-0.5);
-        pusher1.setPower(-0.5);
         sleepSeconds(1);
         feederLever.setPosition(0.0);
+        intake.setPower(-1.0);
+        pusher.setPower(-1.0);
+        pusher1.setPower(-1.0);
         sleepSeconds(1);
-        feederLever.setPosition(1.0);
+        intake.setPower(0.0);
+        pusher.setPower(0.0);
+        pusher1.setPower(0.0);
+
 
     }
 
     private boolean aimAtTag() {
-        final double AIM_TOLERANCE_DEGREES = 1.0; // How close we need to be to count as "aimed"
+        final double AIM_TOLERANCE_DEGREES = 3.0; // How close we need to be to count as "aimed"
 
         LLResult result = limelight.getLatestResult();
 
@@ -275,13 +279,13 @@ public class FinalAuto extends LinearOpMode {
                 return true; // Aiming is complete
 
             } else if (result.getTx() > AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(-0.4);
-                rightDrive.setPower(-0.4);
+                leftDrive.setPower(-0.3);
+                rightDrive.setPower(-0.3);
                 return false; // Aiming is still in progress
 
             } else if (result.getTx() < -AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(0.4);
-                rightDrive.setPower(0.4);
+                leftDrive.setPower(0.3);
+                rightDrive.setPower(0.3);
                 return false;
             }
         }
