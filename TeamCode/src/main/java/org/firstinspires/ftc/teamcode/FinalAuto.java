@@ -199,7 +199,7 @@ public class FinalAuto extends LinearOpMode {
             }
             if(result.isValid()){
                 foundResult = true;
-                if (Math.pow((result.getTa()/10295.76),-0.5566) < 134.0){
+                if (Math.pow((result.getTa()/10295.76),-0.5566) < 100){
                     leftDrive.setPower(0.5);
                     rightDrive.setPower(-0.5);
 
@@ -209,7 +209,7 @@ public class FinalAuto extends LinearOpMode {
                     telemetry.addData("distance:", String.valueOf(distance));
                     telemetry.addData("ta:", result.getTa());
                 }
-                else if (Math.pow((result.getTa()/10295.76),-0.5566) > 135.0){
+                else if (Math.pow((result.getTa()/10295.76),-0.5566) > 100){
                     leftDrive.setPower(0);
                     rightDrive.setPower(0);
                     telemetry.addData("stop:", "stop");
@@ -251,8 +251,8 @@ public class FinalAuto extends LinearOpMode {
         sleepSeconds(1);
         feederLever.setPosition(1.0);
         intake.setPower(-1.0);
-        pusher.setPower(-1.0);
-        pusher1.setPower(-1.0);
+        pusher.setPower(-0.5);
+        pusher1.setPower(-0.5);
         sleepSeconds(1);
         feederLever.setPosition(0.0);
         sleepSeconds(1);
