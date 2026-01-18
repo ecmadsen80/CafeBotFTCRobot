@@ -306,8 +306,8 @@ public class RobotFinalCombination extends LinearOpMode {
                         // No ball is loaded yet. Run the intake motors to pull one in.
                         // The state will remain CHECK_FOR_BALL until isBallLoaded becomes true.
                         intake.setPower(-1.0);
-                        leftPusher.setPower(-1.0);
-                        rightPusher.setPower(-1.0);
+                        leftPusher.setPower(-0.5);
+                        rightPusher.setPower(-0.5);
                         ballLoadedTimer.reset();
                     }
 
@@ -443,8 +443,8 @@ public class RobotFinalCombination extends LinearOpMode {
             double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
             if (intakePower > 0.1 && feederLever.getPosition() != 1.0) {
                 intake.setPower(-1.0);
-                leftPusher.setPower(-1.0);
-                rightPusher.setPower(-1.0);
+                leftPusher.setPower(-0.5);
+                rightPusher.setPower(-0.5);
             }
             else if (intakePower < -0.1 && feederLever.getPosition() != 1.0) {
                 intake.setPower(1.0);

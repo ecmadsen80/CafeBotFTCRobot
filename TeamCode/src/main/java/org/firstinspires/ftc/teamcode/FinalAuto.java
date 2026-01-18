@@ -186,7 +186,7 @@ public class FinalAuto extends LinearOpMode {
                 stop = true;
             }
             flywheel.setPower(1.0);
-            flywheel.setVelocity(2760/60*28);
+            flywheel.setVelocity(2400/60*28);
             LLResult result = limelight.getLatestResult();
             //leftDrive.setPower(0.3);
             //rightDrive.setPower(-0.3);
