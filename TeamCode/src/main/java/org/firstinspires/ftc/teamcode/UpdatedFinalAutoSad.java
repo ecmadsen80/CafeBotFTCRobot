@@ -84,7 +84,6 @@ import com.seattlesolvers.solverslib.controller.PIDFController;
  * Use Android Studio to Copy this Class, and Paste it into your team's code folder with a new name.
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
-@Disabled
 @Autonomous(name="Auto (Near Tower) Not working", group="Linear OpMode")
 
 public class UpdatedFinalAutoSad extends LinearOpMode {
@@ -177,6 +176,8 @@ public class UpdatedFinalAutoSad extends LinearOpMode {
         double distance = 0;
         double pos = 0.234;
         boolean stop = false;
+        leftDrive.setPower(0.4);
+        rightDrive.setPower(-0.4);
 
 
         // run until the end of the match (driver presses STOP)
@@ -184,7 +185,7 @@ public class UpdatedFinalAutoSad extends LinearOpMode {
             leftTurn.setPower(1.0);
             rightTurn.setPower(1.0);
 
-            if (runtime.seconds() > 60) {
+            if (runtime.seconds() > 10) {
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
                 stop = true;
@@ -272,6 +273,7 @@ public class UpdatedFinalAutoSad extends LinearOpMode {
         feederLever.setPosition(0.0);
         sleepSeconds(1);
         feederLever.setPosition(1.0);
+
 
     }
 

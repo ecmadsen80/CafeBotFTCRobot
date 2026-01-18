@@ -174,19 +174,25 @@ public class FinalAuto extends LinearOpMode {
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            if (runtime.seconds() > 60) {
+            if (runtime.seconds() > 12 && !stop) {
+                leftDrive.setPower(0.0);
+                rightDrive.setPower(0.0);
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
+                intake.setPower(0.0);
+                pusher.setPower(0.0);
+                pusher1.setPower(0.0);
+                feederLever.setPosition(1.0);
                 stop = true;
             }
             flywheel.setPower(1.0);
             flywheel.setVelocity(2760/60*28);
             LLResult result = limelight.getLatestResult();
-            leftDrive.setPower(0.3);
-            rightDrive.setPower(-0.3);
+            //leftDrive.setPower(0.3);
+            //rightDrive.setPower(-0.3);
 
             //Positions Robot at 134cm
-            if (!result.isValid() && !foundResult){
+            if (!result.isValid() && !foundResult && !stop){
                 leftDrive.setPower(0.5);
                 rightDrive.setPower(-0.5);
                 telemetry.addData("ta:", "no result");
@@ -213,8 +219,15 @@ public class FinalAuto extends LinearOpMode {
 
             //fires if in correct position
             if (positionFound && !stop){
+                while (!aimAtTag()) {
+
+                }
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
+                intake.setPower(0.0);
+                pusher.setPower(0.0);
+                pusher1.setPower(0.0);
+                feederLever.setPosition(1.0);
                 stop = true;
             }
 
@@ -231,6 +244,8 @@ public class FinalAuto extends LinearOpMode {
         }
     }
     private void SHOOTHEBALLS() {
+        leftDrive.setPower(0.0);
+        rightDrive.setPower(0.0);
         sleepSeconds(1);
         feederLever.setPosition(0.0); //fires one ball
         sleepSeconds(1);
@@ -244,5 +259,39 @@ public class FinalAuto extends LinearOpMode {
         feederLever.setPosition(1.0);
 
     }
+
+    private boolean aimAtTag() {
+        final double AIM_TOLERANCE_DEGREES = 1.0; // How close we need to be to count as "aimed"
+
+        LLResult result = limelight.getLatestResult();
+
+        if (result != null && result.isValid()) {
+            result = limelight.getLatestResult();
+            // Check if we are already aimed
+            if (Math.abs(result.getTx()) < AIM_TOLERANCE_DEGREES) {
+                // We are aimed. Stop the motors and report success.
+                leftDrive.setPower(0);
+                rightDrive.setPower(0);
+                return true; // Aiming is complete
+
+            } else if (result.getTx() > AIM_TOLERANCE_DEGREES) {
+                leftDrive.setPower(0.4);
+                rightDrive.setPower(0.4);
+                return false; // Aiming is still in progress
+
+            } else if (result.getTx() < -AIM_TOLERANCE_DEGREES) {
+                leftDrive.setPower(-0.4);
+                rightDrive.setPower(-0.4);
+                return false;
+            }
+        }
+
+        // If we can't see the tag, we can't aim. Stop motors for safety.
+        telemetry.addLine("No tag detected upon aiming");
+        leftDrive.setPower(0);
+        rightDrive.setPower(0);
+        return false;
+    }
+
 
 }

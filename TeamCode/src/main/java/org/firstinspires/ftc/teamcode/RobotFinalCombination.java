@@ -222,6 +222,7 @@ public class RobotFinalCombination extends LinearOpMode {
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
             switch (currentAimState) {
                 case DRIVING:
+                    flywheel.setVelocity((2000 / 60.0) * TICKS_PER_REV);
                     // If 'A' is pressed, start the aiming process
                     if (gamepad1.aWasPressed()) {
                         currentAimState = AimState.AIMING;
@@ -267,7 +268,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     // Check if the flywheel is within the desired speed range (e.g., 95% of target)
                     if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
                         // If the speed has been stable for 500ms, move to the SHOOTING state.
-                        if (rpmStableTimer.milliseconds() >= 500) {
+                        if (rpmStableTimer.milliseconds() >= 250) {
                             currentAimState = AimState.CHECK_FOR_BALL;
                             ballLoadedTimer.reset();
                         }
@@ -292,7 +293,7 @@ public class RobotFinalCombination extends LinearOpMode {
 
                     if (isBallLoaded) {
                         // A ball has been loaded! Turn off the intake and move to SHOOTING.
-                        if (ballLoadedTimer.milliseconds() >= 500) {
+                        if (ballLoadedTimer.milliseconds() >= 250) {
                             // The ball is stable. Turn off the intake and move to SHOOTING.
                             intake.setPower(0);
                             leftPusher.setPower(0);
@@ -440,6 +441,12 @@ public class RobotFinalCombination extends LinearOpMode {
                 intake.setPower(0.0);
                 leftPusher.setPower(0);
                 rightPusher.setPower(0);
+            }
+
+            if (gamepad1.left_bumper) {
+                flywheel.setVelocity((100 / 60.0) * TICKS_PER_REV);
+                flywheel.setPower(-0.5);
+                sleepSeconds((1));
             }
 
 
