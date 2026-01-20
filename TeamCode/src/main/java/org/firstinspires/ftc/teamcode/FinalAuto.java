@@ -84,7 +84,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 @Autonomous(name="Auto (Near Tower)", group="Linear OpMode")
 
-public class TommysAuto extends LinearOpMode {
+public class FinalAuto extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
