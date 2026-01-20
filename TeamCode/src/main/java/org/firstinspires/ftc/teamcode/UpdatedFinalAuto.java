@@ -40,6 +40,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 /*flywheel.setPower(0.75);
             if (pointer < myList.size()) {
 
@@ -82,9 +83,9 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="Auto (Near Tower)", group="Linear OpMode")
+@Autonomous(name="Auto Tower Updated Monday", group="Linear OpMode")
 
-public class TommysAuto extends LinearOpMode {
+public class FinalAuto extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -104,6 +105,10 @@ public class TommysAuto extends LinearOpMode {
     private static double PUSHER_POWER = 0.7;
     private PIDFCoefficients pidf = new PIDFCoefficients(110,0,0,14);
     private DigitalChannel laserInput;
+
+    // P(roportional) gain for our simple aiming controller.
+    private static final double AIM_KP = 0.01;
+    // ...
     // ArrayList<Float> myList = new ArrayList<>();
 
 
@@ -229,8 +234,9 @@ public class TommysAuto extends LinearOpMode {
             //fires if in correct position
             if (positionFound && !stop){
                 while (!aimAtTag()) {
-
+                    sleep(20);
                 }
+                SHOOTHEBALLS();
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
                 intake.setPower(0.0);
@@ -253,115 +259,96 @@ public class TommysAuto extends LinearOpMode {
             Thread.currentThread().interrupt();
         }
     }
+
     private void SHOOTHEBALLS() {
-        leftDrive.setPower(0.0);
-        rightDrive.setPower(0.0);
+        // This method will now reliably fire ONE ball and then load the NEXT one.
 
-        //sleepSeconds(1);
-        double currentRPM = flywheel.getVelocity() / 28 * 60;
-        while (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) > 0.05){
-            sleep(100);
-            currentRPM = flywheel.getVelocity() / 28 * 60;
-        }
-        if (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) < 0.05) {
-            feederLever.setPosition(1.0); //fires one ball
-            sleepSeconds(1);
-            feederLever.setPosition(0);
-        }
+        // --- Step 1: Wait for the flywheel to be at the correct speed ---
+        waitForFlywheelStable();
 
-        intake.setPower(-1.0);
-        pusher.setPower(-PUSHER_POWER);
-        pusher1.setPower(-PUSHER_POWER);
-        //sleepSeconds(1);
-        /*
-        boolean isBallLoaded = laserInput.getState();
+        // --- Step 2: Fire the ball that is currently loaded ---
+        feederLever.setPosition(1.0); // Fires the ball
+        sleep(1000);                   // Wait for the servo to move
+        feederLever.setPosition(0);   // Reset the feeder
+        sleep(1000);                   // Wait for the servo to retract fully
 
-        while (!isBallLoaded){
-            isBallLoaded = laserInput.getState();
-            sleep(100);
-        }
+        // --- Step 3: Run the intake and wait for the NEXT ball to be loaded ---
+        loadNextBall();
+    }
 
-        pusher.setPower(0);
-        pusher1.setPower(0);
-        intake.setPower(0);
-        */
-
-        currentRPM = flywheel.getVelocity() / 28 * 60;
-        while (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) > 0.05){
-            sleep(100);
-            currentRPM = flywheel.getVelocity() / 28 * 60;
-        }
-        if (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) < 0.05) {
-            pusher.setPower(0);
-            pusher1.setPower(0);
-            intake.setPower(0);
-            feederLever.setPosition(1.0);
-            sleepSeconds(1);
-            feederLever.setPosition(0);
-        }
-
+    /**
+     * Helper method that turns on the intake and waits for a new ball to be detected.
+     */
+    private void loadNextBall() {
         intake.setPower(-1.0);
         pusher.setPower(-PUSHER_POWER);
         pusher1.setPower(-PUSHER_POWER);
 
-        /*
-        isBallLoaded = laserInput.getState();
-        while (!isBallLoaded){
-            isBallLoaded = laserInput.getState();
-            sleep(100);
+        ElapsedTime intakeTimer = new ElapsedTime();
+        // This loop will run until a new ball is detected, with a 5-second timeout for safety.
+        while (opModeIsActive() && intakeTimer.seconds() < 5) {
+            // IMPORTANT: Re-read the sensor INSIDE the loop
+            if (laserInput.getState()) {
+                // Ball has been detected, break out of the intake loop.
+                break;
+            }
+            sleep(100); // Small delay to not spam the CPU
         }
 
-
+        // Turn off the intake motors after loading or timeout
+        intake.setPower(0);
         pusher.setPower(0);
         pusher1.setPower(0);
-        intake.setPower(0);
+    }
 
-         */
-
-        currentRPM = flywheel.getVelocity() / 28 * 60;
-        while (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) > 0.05){
-            sleep(100);
-            currentRPM = flywheel.getVelocity() / 28 * 60;
+    /**
+     * Helper method to wait until the flywheel RPM is stable.
+     */
+    private void waitForFlywheelStable() {
+        // This loop pauses execution until the flywheel is within 5% of the target RPM.
+        while (opModeIsActive() && TARGET_RPM > 0) {
+            double currentRPM = flywheel.getVelocity() / 28 * 60;
+            if (Math.abs((currentRPM - TARGET_RPM) / TARGET_RPM) <= 0.05) {
+                // Speed is stable, we can exit the loop.
+                break;
+            }
+            sleep(50); // Wait 50ms before re-checking.
         }
-
-        if (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) < 0.05) {
-            pusher.setPower(0);
-            pusher1.setPower(0);
-            intake.setPower(0);
-            feederLever.setPosition(1.0);
-            sleepSeconds(1);
-            feederLever.setPosition(0);
-        }
-
     }
 
     private boolean aimAtTag() {
-        final double AIM_TOLERANCE_DEGREES = 1.0; // How close we need to be to count as "aimed"
-
+        final double AIM_TOLERANCE_DEGREES = 1.0; // Your desired tolerance
         LLResult result = limelight.getLatestResult();
 
         if (result != null && result.isValid()) {
-            result = limelight.getLatestResult();
+            // The "error" is the horizontal angle to the tag. We want this to be 0.
+            double error = result.getTx();
+
             // Check if we are already aimed
-            if (Math.abs(result.getTx()) < AIM_TOLERANCE_DEGREES) {
+            if (Math.abs(error) < AIM_TOLERANCE_DEGREES) {
                 // We are aimed. Stop the motors and report success.
                 leftDrive.setPower(0);
                 rightDrive.setPower(0);
                 return true; // Aiming is complete
+            } else {
+                // Calculate the proportional turn power.
+                // The power will be high when the error is large, and low when it's small.
+                double turnPower = Range.clip(error * AIM_KP, -0.4, 0.4); // Clamp max speed to 0.4
 
-            } else if (result.getTx() > AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(-0.4);
-                rightDrive.setPower(-0.4);
+                // Apply power to the motors to turn the robot.
+                // Remember your robot's unique turning: both motors forward to turn RIGHT.
+                if (error > 0) { // Tag is to the RIGHT, so turn RIGHT
+                    leftDrive.setPower(-turnPower);
+                    rightDrive.setPower(-turnPower);
+                } else { // Tag is to the LEFT, so turn LEFT
+                    leftDrive.setPower(-turnPower);
+                    rightDrive.setPower(-turnPower);
+                }
                 return false; // Aiming is still in progress
-
-            } else if (result.getTx() < -AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(0.4);
-                rightDrive.setPower(0.4);
-                return false;
             }
         }
 
-        // If we can't see the tag, we can't aim. Stop motors for safety.
+        // If we can't see the tag, stop for safety.
         telemetry.addLine("No tag detected upon aiming");
         leftDrive.setPower(0);
         rightDrive.setPower(0);

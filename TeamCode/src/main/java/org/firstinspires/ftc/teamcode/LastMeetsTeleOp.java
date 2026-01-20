@@ -26,9 +26,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 
-@TeleOp(name="A Working TeleOp", group="Linear OpMode")
+@TeleOp(name="A Working TeleOp (Last Meet)", group="Linear OpMode")
 
-public class RobotFinalCombination extends LinearOpMode {
+public class LastMeetsTeleOp extends LinearOpMode {
 
     // Declare OpMode members.
 
@@ -62,7 +62,6 @@ public class RobotFinalCombination extends LinearOpMode {
     private static final int RED_APRIL_TAG = 24;
     private static final int BLUE_APRIL_TAG = 20;
 
-    private static double PUSHER_POWER = 1.0;
 
 
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
@@ -84,16 +83,13 @@ public class RobotFinalCombination extends LinearOpMode {
     private ElapsedTime rpmStableTimer = new ElapsedTime();
     // Timer to track how long a ball has been loaded
     private ElapsedTime ballLoadedTimer = new ElapsedTime();
-
-    private ElapsedTime feederResetTimer = new ElapsedTime();
     // States for the Aim-and-Shoot subroutine
     private enum AimState {
         DRIVING,       // Doing nothing
         AIMING,     // Robot is turning to face the tag
         SPINNING_UP,
         CHECK_FOR_BALL,
-        SHOOTING,    // Robot is aimed, now shooting
-        RESETTING_FEEDER
+        SHOOTING    // Robot is aimed, now shooting
     }    // Variable to track the current state
 
     private AimState currentAimState = AimState.DRIVING;
@@ -242,7 +238,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 2 degrees
                         // If aimed, move to the next state and shoot
                         targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
-                        targetRPM = 0.95*targetRPM;
+                        targetRPM = 1.02*targetRPM;
                         if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
                             targetRPM *= 0.9;
                         }
@@ -261,7 +257,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     // In this state, we are aimed, but waiting for the flywheel to be stable.
                     // Keep the robot aimed at the tag in case it drifts.
                     turn = pointAtTag();
-                     // <-- Add one more ')' here
+                    // <-- Add one more ')' here
 
                     // Get the current flywheel velocity in RPM
 
@@ -273,7 +269,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     double currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
                     // Check if the flywheel is within the desired speed range (e.g., 95% of target)
                     if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
-                        // If the speed has been stable for set time (ms) , move to the SHOOTING state.
+                        // If the speed has been stable for 500ms, move to the SHOOTING state.
                         if (rpmStableTimer.milliseconds() >= 150) {
                             currentAimState = AimState.CHECK_FOR_BALL;
                             ballLoadedTimer.reset();
@@ -297,34 +293,22 @@ public class RobotFinalCombination extends LinearOpMode {
                     // Keep the robot aimed at the tag in case it drifts.
                     turn = pointAtTag();
 
-                    // IMPORTANT: Re-read the sensor state NOW to get the most current data.
-                    boolean ballIsCurrentlyLoaded = laserInput.getState();
-
-                    // Check if the feeder is down to ensure we are ready to intake.
-                    if (feederLever.getPosition() < 0.1) { // Assuming 0 is down
-                        if (ballIsCurrentlyLoaded) {
-                            // A ball is detected. Check if it has been there long enough to be stable.
-                            if (ballLoadedTimer.milliseconds() >= 50) {
-                                // The ball is stable. Turn off the intake and move to SHOOTING.
-                                intake.setPower(0);
-                                leftPusher.setPower(0);
-                                rightPusher.setPower(0);
-                                currentAimState = AimState.SHOOTING;
-                            }
-                        } else {
-                            // No ball is loaded, and the feeder is down. Run the intake.
-                            intake.setPower(-1.0);
-                            leftPusher.setPower(-PUSHER_POWER);
-                            rightPusher.setPower(-PUSHER_POWER);
-                            // Reset the timer since the ball is not present.
-                            ballLoadedTimer.reset();
+                    if (isBallLoaded) {
+                        // A ball has been loaded! Turn off the intake and move to SHOOTING.
+                        if (ballLoadedTimer.milliseconds() >= 250) {
+                            // The ball is stable. Turn off the intake and move to SHOOTING.
+                            intake.setPower(0);
+                            leftPusher.setPower(0);
+                            rightPusher.setPower(0);
+                            currentAimState = AimState.SHOOTING;
                         }
-                    } else {
-                        // If the feeder is not down, do nothing and wait for it to reset.
-                        // This prevents the intake from running while the feeder is still up.
-                        intake.setPower(0);
-                        leftPusher.setPower(0);
-                        rightPusher.setPower(0);
+                    } else if (feederLever.getPosition() != 1.0){
+                        // No ball is loaded yet. Run the intake motors to pull one in.
+                        // The state will remain CHECK_FOR_BALL until isBallLoaded becomes true.
+                        intake.setPower(-1.0);
+                        leftPusher.setPower(-0.5);
+                        rightPusher.setPower(-0.5);
+                        ballLoadedTimer.reset();
                     }
 
                     // Allow the driver to cancel the entire routine.
@@ -347,38 +331,14 @@ public class RobotFinalCombination extends LinearOpMode {
                         flywheel.setVelocity(0);
                         shotsFired = 0;
                     } else {
-                        feederResetTimer.reset();
-                        currentAimState = AimState.RESETTING_FEEDER;
-
-                    }
-                    if (gamepad1.aWasPressed()) {
-                        currentAimState = AimState.DRIVING;
-                        flywheel.setVelocity(0);
-                        shotsFired = 0;
-                    }
-                    break;
-                case RESETTING_FEEDER:
-                    // This state is a simple timer-based delay.
-                    // It gives the feederLever servo time to fully retract
-                    // before we start checking the laser sensor for the next ball.
-
-                    // Keep aiming at the tag during this short wait.
-                    turn = pointAtTag();
-
-                    // Wait for 250 milliseconds
-                    if (feederResetTimer.milliseconds() >= 250) {
-                        // The feeder has had enough time to retract. Now we can look for a ball.
-                        ballLoadedTimer.reset(); // Reset the ball stability timer for the next check
                         currentAimState = AimState.CHECK_FOR_BALL;
+                        ballLoadedTimer.reset();
                     }
-
-                    // Allow the driver to cancel
                     if (gamepad1.aWasPressed()) {
                         currentAimState = AimState.DRIVING;
-                        flywheel.setVelocity(0);
-                        shotsFired = 0;
                     }
                     break;
+
             }
 
 
@@ -480,14 +440,11 @@ public class RobotFinalCombination extends LinearOpMode {
 
 
             //Intake
-            isBallLoaded = laserInput.getState();
             double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
             if (intakePower > 0.1 && feederLever.getPosition() != 1.0) {
                 intake.setPower(-1.0);
-                if (!isBallLoaded) {
-                    leftPusher.setPower(-PUSHER_POWER);
-                    rightPusher.setPower(-PUSHER_POWER);
-                }
+                leftPusher.setPower(-0.5);
+                rightPusher.setPower(-0.5);
             }
             else if (intakePower < -0.1 && feederLever.getPosition() != 1.0) {
                 intake.setPower(1.0);
@@ -505,13 +462,25 @@ public class RobotFinalCombination extends LinearOpMode {
 
             //flywheel manual control
             if (gamepad1.dpadDownWasPressed()){
-                feederLever.setPosition(0.0);
+                targetRPM = 2000;
             }
             if (gamepad1.dpadUpWasPressed()){
-                feederLever.setPosition(0.6);
+                targetRPM = 0;
             }
+            //Flywheel - right now manually adjusted
+            if (gamepad1.dpad_right) {
+                targetRPM += STEP;
+                if (targetRPM > MAX_RPM) targetRPM = MAX_RPM;
 
-
+                // simple debounce
+                sleep(200);
+            }
+            // --- Step Down ---
+            if (gamepad1.dpad_left) {
+                targetRPM -= STEP;
+                if (targetRPM < MIN_RPM) targetRPM = MIN_RPM;
+                sleep(200);
+            }
             // Convert RPM → ticks per second
             double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
 
@@ -533,12 +502,10 @@ public class RobotFinalCombination extends LinearOpMode {
                 rightTurn.setVelocity(0);
             }
 
-            /*
+
             if (gamepad1.leftBumperWasPressed()) {
                 aimPid.setF(aimPid.getF()+ 0.005);
             }
-
-             */
 
             //Dashboard Graphing
             double currentLeftDrive  = leftDrive.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
@@ -666,39 +633,39 @@ public class RobotFinalCombination extends LinearOpMode {
         if (result != null && result.isValid()) {
             // Get the list of all visible tags
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
-                for (LLResultTypes.FiducialResult fr : fiducials) {
-                    if (fr.getFiducialId() == RED_APRIL_TAG) {
-                        telemetry.addData("Red April Tag", "Found");
-                        Pose3D targetPose = fr.getRobotPoseTargetSpace();
-                        double x = targetPose.getPosition().x; // camera X in tag frame
-                        double y = targetPose.getPosition().y; // camera Y in tag frame
-                        double z = targetPose.getPosition().z;
-                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
+            for (LLResultTypes.FiducialResult fr : fiducials) {
+                if (fr.getFiducialId() == RED_APRIL_TAG) {
+                    telemetry.addData("Red April Tag", "Found");
+                    Pose3D targetPose = fr.getRobotPoseTargetSpace();
+                    double x = targetPose.getPosition().x; // camera X in tag frame
+                    double y = targetPose.getPosition().y; // camera Y in tag frame
+                    double z = targetPose.getPosition().z;
+                    double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
 
-                        // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
-                        angleFromTagDeg = Math.toDegrees(Math.atan2(x, z)) + 180;
-                        telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
-                        telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
-                        telemetry.addData("angleFromTagDeg", angleFromTagDeg);
-                        break;
+                    // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
+                    angleFromTagDeg = Math.toDegrees(Math.atan2(x, z)) + 180;
+                    telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
+                    telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
+                    telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+                    break;
 
-                    } else if (fr.getFiducialId() == BLUE_APRIL_TAG) {
-                        telemetry.addData("Blue April Tag", "Found");
+                } else if (fr.getFiducialId() == BLUE_APRIL_TAG) {
+                    telemetry.addData("Blue April Tag", "Found");
 
-                        Pose3D targetPose = fr.getRobotPoseTargetSpace();
+                    Pose3D targetPose = fr.getRobotPoseTargetSpace();
 
-                        double x = targetPose.getPosition().x; // camera X in tag frame
-                        double y = targetPose.getPosition().y; // camera Y in tag frame
-                        double z = targetPose.getPosition().z;
-                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
+                    double x = targetPose.getPosition().x; // camera X in tag frame
+                    double y = targetPose.getPosition().y; // camera Y in tag frame
+                    double z = targetPose.getPosition().z;
+                    double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
 
-                        // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
-                        angleFromTagDeg = 180 - (Math.toDegrees(Math.atan2(x, z)));
-                        telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
-                        telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
-                        telemetry.addData("angleFromTagDeg", angleFromTagDeg);
-                        break;
-                    }
+                    // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
+                    angleFromTagDeg = 180 - (Math.toDegrees(Math.atan2(x, z)));
+                    telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
+                    telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
+                    telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+                    break;
+                }
             }
         }
 
