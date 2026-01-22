@@ -29,17 +29,20 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
+import java.util.ArrayList;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 /*flywheel.setPower(0.75);
             if (pointer < myList.size()) {
 
@@ -100,10 +103,7 @@ public class FinalAuto extends LinearOpMode {
     private DcMotor pusher1 = null;
     public boolean isAiming = false;
     private Servo light;
-    private static int TARGET_RPM = 2400;
-    private static double PUSHER_POWER = 0.7;
-    private PIDFCoefficients pidf = new PIDFCoefficients(110,0,0,14);
-    private DigitalChannel laserInput;
+    private  PIDFCoefficients pidf = new PIDFCoefficients(110,0,0,14);
     // ArrayList<Float> myList = new ArrayList<>();
 
 
@@ -125,7 +125,6 @@ public class FinalAuto extends LinearOpMode {
         pusher = hardwareMap.get(DcMotor.class, "rightpusher");
         pusher1 = hardwareMap.get(DcMotor.class, "leftpusher");
         light = hardwareMap.get(Servo.class, "light");
-        laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
 
 
         //intake.setDirection(DcMotor.Direction.FORWARD);light  = hardwareMap.get(Servo.class, "blink");
@@ -133,7 +132,6 @@ public class FinalAuto extends LinearOpMode {
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,pidf);
-
 
         leftTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -152,7 +150,6 @@ public class FinalAuto extends LinearOpMode {
 
         feederLever.setPosition(0.0);
 
-        laserInput.setMode(DigitalChannel.Mode.INPUT);
 
         limelight.start();
         limelight.pipelineSwitch(0);
@@ -177,13 +174,13 @@ public class FinalAuto extends LinearOpMode {
         boolean stop = false;
 
 
-
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            /*
-            if (runtime.seconds() > 25 && !stop) {
+            if (runtime.seconds() > 12 && !stop) {
                 leftDrive.setPower(0.0);
                 rightDrive.setPower(0.0);
+                SHOOTHEBALLS();
+                SHOOTHEBALLS();
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
                 intake.setPower(0.0);
@@ -192,25 +189,23 @@ public class FinalAuto extends LinearOpMode {
                 feederLever.setPosition(1.0);
                 stop = true;
             }
-            */
-
-            //flywheel.setPower(1.0);
-            flywheel.setVelocity(TARGET_RPM/60*28);
+            flywheel.setPower(1.0);
+            flywheel.setVelocity(2500/60*28);
             LLResult result = limelight.getLatestResult();
             //leftDrive.setPower(0.3);
             //rightDrive.setPower(-0.3);
 
             //Positions Robot at 134cm
             if (!result.isValid() && !foundResult && !stop){
-                leftDrive.setPower(0.5);
-                rightDrive.setPower(-0.5);
+                leftDrive.setPower(0.35);
+                rightDrive.setPower(-0.35);
                 telemetry.addData("ta:", "no result");
             }
-            if(result.isValid()){
+            if(result.isValid() && !stop){
                 foundResult = true;
-                if (Math.pow((result.getTa()/10295.76),-0.5566) < 100){
-                    leftDrive.setPower(0.5);
-                    rightDrive.setPower(-0.5);
+                if (Math.pow((result.getTa()/10295.76),-0.5566) < 100.0){
+                    leftDrive.setPower(0.35);
+                    rightDrive.setPower(-0.35);
 
                     telemetry.addData("ta", result.getTa());
                     distance = Math.pow((result.getTa()/10295.76),-0.5566);
@@ -218,10 +213,10 @@ public class FinalAuto extends LinearOpMode {
                     telemetry.addData("distance:", String.valueOf(distance));
                     telemetry.addData("ta:", result.getTa());
                 }
-                else if (Math.pow((result.getTa()/10295.76),-0.5566) > 100){
+                else if (Math.pow((result.getTa()/10295.76),-0.5566) > 100.0){
                     leftDrive.setPower(0);
                     rightDrive.setPower(0);
-                    telemetry.addData("position found:", "true");
+                    telemetry.addData("stop:", "stop");
                     positionFound = true;
                 }
             }
@@ -233,16 +228,17 @@ public class FinalAuto extends LinearOpMode {
                 }
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
+                SHOOTHEBALLS();
+                SHOOTHEBALLS();
                 intake.setPower(0.0);
                 pusher.setPower(0.0);
                 pusher1.setPower(0.0);
-                feederLever.setPosition(0);
+                feederLever.setPosition(1.0);
                 stop = true;
             }
-            telemetry.addData("tx", result.getTx());
+
             telemetry.update();
         }
-
         limelight.stop();
     }
 
@@ -256,82 +252,17 @@ public class FinalAuto extends LinearOpMode {
     private void SHOOTHEBALLS() {
         leftDrive.setPower(0.0);
         rightDrive.setPower(0.0);
-
-        //sleepSeconds(1);
-        double currentRPM = flywheel.getVelocity() / 28 * 60;
-        while (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) > 0.05){
-            sleep(100);
-            currentRPM = flywheel.getVelocity() / 28 * 60;
-        }
-        if (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) < 0.05) {
-            feederLever.setPosition(1.0); //fires one ball
-            sleepSeconds(1);
-            feederLever.setPosition(0);
-        }
-
+        sleepSeconds(1);
+        feederLever.setPosition(0.0); //fires one ball
+        sleepSeconds(1);
+        feederLever.setPosition(1.0);
         intake.setPower(-1.0);
-        pusher.setPower(-PUSHER_POWER);
-        pusher1.setPower(-PUSHER_POWER);
-        //sleepSeconds(1);
-        /*
-        boolean isBallLoaded = laserInput.getState();
-
-        while (!isBallLoaded){
-            isBallLoaded = laserInput.getState();
-            sleep(100);
-        }
-
-        pusher.setPower(0);
-        pusher1.setPower(0);
-        intake.setPower(0);
-        */
-
-        currentRPM = flywheel.getVelocity() / 28 * 60;
-        while (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) > 0.05){
-            sleep(100);
-            currentRPM = flywheel.getVelocity() / 28 * 60;
-        }
-        if (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) < 0.05) {
-            pusher.setPower(0);
-            pusher1.setPower(0);
-            intake.setPower(0);
-            feederLever.setPosition(1.0);
-            sleepSeconds(1);
-            feederLever.setPosition(0);
-        }
-
-        intake.setPower(-1.0);
-        pusher.setPower(-PUSHER_POWER);
-        pusher1.setPower(-PUSHER_POWER);
-
-        /*
-        isBallLoaded = laserInput.getState();
-        while (!isBallLoaded){
-            isBallLoaded = laserInput.getState();
-            sleep(100);
-        }
-
-
-        pusher.setPower(0);
-        pusher1.setPower(0);
-        intake.setPower(0);
-
-         */
-
-        currentRPM = flywheel.getVelocity() / 28 * 60;
-        while (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) > 0.05){
-            sleep(100);
-            currentRPM = flywheel.getVelocity() / 28 * 60;
-        }
-
-        if (TARGET_RPM > 0 && Math.abs((currentRPM-TARGET_RPM)/TARGET_RPM) < 0.05) {
-            pusher.setPower(0);
-            pusher1.setPower(0);
-            intake.setPower(0);
-            feederLever.setPosition(1.0);
-            sleepSeconds(1);
-            feederLever.setPosition(0);
-        }
+        pusher.setPower(-1.0);
+        pusher1.setPower(-1.0);
+        sleepSeconds(1);
+        feederLever.setPosition(0.0);
+        sleepSeconds(1);
+        feederLever.setPosition(1.0);
 
     }
 
@@ -350,13 +281,13 @@ public class FinalAuto extends LinearOpMode {
                 return true; // Aiming is complete
 
             } else if (result.getTx() > AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(-0.4);
-                rightDrive.setPower(-0.4);
+                leftDrive.setPower(-0.25);
+                rightDrive.setPower(-0.25);
                 return false; // Aiming is still in progress
 
             } else if (result.getTx() < -AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(0.4);
-                rightDrive.setPower(0.4);
+                leftDrive.setPower(0.25);
+                rightDrive.setPower(0.25);
                 return false;
             }
         }
