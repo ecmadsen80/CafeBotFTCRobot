@@ -26,9 +26,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 
-@TeleOp(name="A Working TeleOp", group="Linear OpMode")
+@TeleOp(name="A Working TeleOp Updated Distancer", group="Linear OpMode")
 
-public class RobotFinalCombination extends LinearOpMode {
+public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
 
     // Declare OpMode members.
 
@@ -212,7 +212,7 @@ public class RobotFinalCombination extends LinearOpMode {
                 }
 
                 // This distance calculation should only happen when the result is valid.
-                distance = Math.pow((result.getTa()/9946.27),-0.560091);
+                distance = distanceFromTag();
             }
 
 
@@ -243,9 +243,11 @@ public class RobotFinalCombination extends LinearOpMode {
                         // If aimed, move to the next state and shoot
                         targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
                         targetRPM = flyWheelPowerMultiplier*targetRPM;
+                        /*
                         if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
                             targetRPM *= 0.9;
                         }
+                        */
                         rpmStableTimer.reset();
                         currentAimState = AimState.SPINNING_UP;
 
@@ -261,7 +263,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     // In this state, we are aimed, but waiting for the flywheel to be stable.
                     // Keep the robot aimed at the tag in case it drifts.
                     turn = pointAtTag();
-                     // <-- Add one more ')' here
+                    // <-- Add one more ')' here
 
                     // Get the current flywheel velocity in RPM
 
@@ -309,11 +311,11 @@ public class RobotFinalCombination extends LinearOpMode {
                                 distance = Math.pow((result.getTa()/9946.27),-0.560091);
                                 targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
                                 targetRPM = flyWheelPowerMultiplier*targetRPM;
-
+                                /*
                                 if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
                                     targetRPM *= 0.9;
                                 }
-
+                                */
                                 targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
                                 flywheel.setVelocity(targetTPS);
 
@@ -695,43 +697,43 @@ public class RobotFinalCombination extends LinearOpMode {
         if (result != null && result.isValid()) {
 
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults(); // Get the list of all visible tags
-                for (LLResultTypes.FiducialResult fr : fiducials) {
-                    if (fr.getFiducialId() == RED_APRIL_TAG) {                          //This identifies the Red AprilTag
-                        telemetry.addData("Red April Tag", "Found");
-                        Pose3D targetPose = fr.getRobotPoseTargetSpace();               //Gets the "pose" of the robot relative to the AprilTag
-                        double x = targetPose.getPosition().x;                          //Obtains x, y, and z of the robot relative to the AprilTag
-                        double y = targetPose.getPosition().y;
-                        double z = targetPose.getPosition().z;
-                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
+            for (LLResultTypes.FiducialResult fr : fiducials) {
+                if (fr.getFiducialId() == RED_APRIL_TAG) {                          //This identifies the Red AprilTag
+                    telemetry.addData("Red April Tag", "Found");
+                    Pose3D targetPose = fr.getRobotPoseTargetSpace();               //Gets the "pose" of the robot relative to the AprilTag
+                    double x = targetPose.getPosition().x;                          //Obtains x, y, and z of the robot relative to the AprilTag
+                    double y = targetPose.getPosition().y;
+                    double z = targetPose.getPosition().z;
+                    double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
 
-                        // Bearing from tag to camera in tag plane: x is the "left/right" distance, z is the distance straight out from the Tag
-                        angleFromTagDeg = Math.toDegrees(Math.atan2(x, z)) + 180;       //This does the math to calculate the angle of the robot from
-                                                                                        //from the Tag. Have to add 180 for Red side.
+                    // Bearing from tag to camera in tag plane: x is the "left/right" distance, z is the distance straight out from the Tag
+                    angleFromTagDeg = Math.toDegrees(Math.atan2(x, z)) + 180;       //This does the math to calculate the angle of the robot from
+                    //from the Tag. Have to add 180 for Red side.
 
-                        //Telemetry data added for troubleshooting and verification
-                        telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
-                        telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
-                        telemetry.addData("angleFromTagDeg", angleFromTagDeg);
-                        break;
+                    //Telemetry data added for troubleshooting and verification
+                    telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
+                    telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
+                    telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+                    break;
 
-                        // Repeat for the Blue side
-                    } else if (fr.getFiducialId() == BLUE_APRIL_TAG) {
-                        telemetry.addData("Blue April Tag", "Found");
+                    // Repeat for the Blue side
+                } else if (fr.getFiducialId() == BLUE_APRIL_TAG) {
+                    telemetry.addData("Blue April Tag", "Found");
 
-                        Pose3D targetPose = fr.getRobotPoseTargetSpace();
+                    Pose3D targetPose = fr.getRobotPoseTargetSpace();
 
-                        double x = targetPose.getPosition().x; // camera X in tag frame
-                        double y = targetPose.getPosition().y; // camera Y in tag frame
-                        double z = targetPose.getPosition().z;
-                        double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
+                    double x = targetPose.getPosition().x; // camera X in tag frame
+                    double y = targetPose.getPosition().y; // camera Y in tag frame
+                    double z = targetPose.getPosition().z;
+                    double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
 
-                        // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
-                        angleFromTagDeg = 180 - (Math.toDegrees(Math.atan2(x, z)));
-                        telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
-                        telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
-                        telemetry.addData("angleFromTagDeg", angleFromTagDeg);
-                        break;
-                    }
+                    // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
+                    angleFromTagDeg = 180 - (Math.toDegrees(Math.atan2(x, z)));
+                    telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
+                    telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
+                    telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+                    break;
+                }
             }
         }
 
