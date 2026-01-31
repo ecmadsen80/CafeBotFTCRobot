@@ -22,6 +22,7 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -61,12 +62,14 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 //Indigo – 0.666
 //Violet – 0.722
 //White – 1
+    @Disabled
 @TeleOp(name = "laserDigitalExample")
 public class laserDigitalExample extends LinearOpMode {
 
     private DigitalChannel laserInput;
     private Servo light;
     private DcMotorEx driver;
+
 
     @Override
     public void runOpMode() {

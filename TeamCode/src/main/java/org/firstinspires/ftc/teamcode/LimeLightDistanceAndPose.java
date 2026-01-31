@@ -54,7 +54,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 import java.util.List;
-
+@Disabled
 @TeleOp(name="LimelightDistanceAndPose", group="Linear OpMode")
 
 public class LimeLightDistanceAndPose extends LinearOpMode {

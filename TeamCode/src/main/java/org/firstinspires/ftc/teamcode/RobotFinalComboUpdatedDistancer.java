@@ -26,7 +26,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 
-@TeleOp(name="A Working TeleOp Updated Distancer", group="Linear OpMode")
+@TeleOp(name="Qualifier TeleOp", group="Linear OpMode")
 
 public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
 
@@ -64,7 +64,7 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
 
     private static double PUSHER_POWER = 1.0;
 
-    private double flyWheelPowerMultiplier = 1.02;
+    private double flyWheelPowerMultiplier = 1;
 
 
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
@@ -229,6 +229,7 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
             switch (currentAimState) {
                 case DRIVING:
                     // If 'A' is pressed, start the aiming process
+
                     if (gamepad1.aWasPressed()) {
                         currentAimState = AimState.AIMING;
                     }
@@ -241,7 +242,8 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                     // Check if we are successfully aimed at the target
                     if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 2 degrees
                         // If aimed, move to the next state and shoot
-                        targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
+                        distance = distanceFromTag();
+                        targetRPM = 2394.199*Math.pow(distance,0.3470215);
                         targetRPM = flyWheelPowerMultiplier*targetRPM;
                         /*
                         if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
@@ -276,7 +278,7 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                     // Check if the flywheel is within the desired speed range (e.g., 95% of target)
                     if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
                         // If the speed has been stable for set time (ms) , move to the SHOOTING state.
-                        if (rpmStableTimer.milliseconds() >= 150) {
+                        if (rpmStableTimer.milliseconds() >= 250) {
                             currentAimState = AimState.CHECK_FOR_BALL;
                             ballLoadedTimer.reset();
                         }
@@ -308,8 +310,10 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                             // A ball is detected. Check if it has been there long enough to be stable.
                             if (ballLoadedTimer.milliseconds() >= 50) {
                                 // The ball is stable. Turn off the intake and move to SHOOTING.
-                                distance = Math.pow((result.getTa()/9946.27),-0.560091);
-                                targetRPM = 3238.403 + (2206.559 - 3238.403) / (1 + (Math.pow((distance / 141.1671), 3.98712)));
+
+                                distance = distanceFromTag();
+                                //distance = Math.pow((result.getTa()/9946.27),-0.560091);
+                                targetRPM = 2394.199*Math.pow(distance,0.3470215);
                                 targetRPM = flyWheelPowerMultiplier*targetRPM;
                                 /*
                                 if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
@@ -404,8 +408,25 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                     turn = pointAtTag();
                 } else {
                     turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
+                    turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
                     aimPid.reset(); // Reset PID memory when not in use
                 }
+
+                if (gamepad1.left_bumper){
+                    intake.setPower(1);
+                    leftPusher.setPower(PUSHER_POWER);
+                    rightPusher.setPower(PUSHER_POWER);
+                }
+
+                if (gamepad1.dpadDownWasPressed()){
+                    targetRPM += 25;
+                }
+                if (gamepad1.dpadUpWasPressed()){
+                    targetRPM -= 25;
+                }
+
+                double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
+                flywheel.setVelocity(targetTPS);
             }
 
             //Aim and Fire Ball
@@ -490,10 +511,6 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
 
 
 
-
-
-
-
             //Intake
             isBallLoaded = laserInput.getState();
             double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
@@ -527,11 +544,11 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
             }
             */
 
-            // Convert RPM → ticks per second
+            /*
             double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
 
-            // Apply velocity
             flywheel.setVelocity(targetTPS);
+            */
 
             //singlebutton shoot only
             if (gamepad1.bWasPressed()){
@@ -546,20 +563,6 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                 rightDrive.setPower(0);
                 leftTurn.setVelocity(0); //setVelocity actively holds the motor in it's current position
                 rightTurn.setVelocity(0);
-            }
-
-
-            if (gamepad1.dpadUpWasPressed() ) {
-                flyWheelPowerMultiplier += 0.01;
-            }
-            if (gamepad1.dpadDownWasPressed()&& aimPid.getF()>= 0.01) {
-                flyWheelPowerMultiplier -= 0.01;
-            }
-            if (gamepad1.dpadLeftWasPressed()) {
-                aimPid.setP(aimPid.getP() + 0.005); // Increment D by a small amount
-            }
-            if (gamepad1.dpadRightWasPressed()&& aimPid.getP()>0.005) {
-                aimPid.setP(aimPid.getP() - 0.005);
             }
 
 

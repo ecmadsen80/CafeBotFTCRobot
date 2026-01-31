@@ -85,7 +85,7 @@ import com.qualcomm.robotcore.util.Range;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="Auto (Near Tower)", group="Linear OpMode")
+@Autonomous(name="Qualifier Auto", group="Linear OpMode")
 
 public class FinalAuto extends LinearOpMode {
 
@@ -180,13 +180,15 @@ public class FinalAuto extends LinearOpMode {
                 leftDrive.setPower(0.0);
                 rightDrive.setPower(0.0);
                 SHOOTHEBALLS();
+                sleep(1000);
                 SHOOTHEBALLS();
+                sleep(1000);
                 SHOOTHEBALLS();
                 SHOOTHEBALLS();
                 intake.setPower(0.0);
                 pusher.setPower(0.0);
                 pusher1.setPower(0.0);
-                feederLever.setPosition(1.0);
+                feederLever.setPosition(0);
                 stop = true;
             }
             flywheel.setPower(1.0);
@@ -233,7 +235,7 @@ public class FinalAuto extends LinearOpMode {
                 intake.setPower(0.0);
                 pusher.setPower(0.0);
                 pusher1.setPower(0.0);
-                feederLever.setPosition(1.0);
+                feederLever.setPosition(0);
                 stop = true;
             }
 
@@ -253,16 +255,19 @@ public class FinalAuto extends LinearOpMode {
         leftDrive.setPower(0.0);
         rightDrive.setPower(0.0);
         sleepSeconds(1);
-        feederLever.setPosition(0.0); //fires one ball
+        feederLever.setPosition(1.0); //fires one ball
         sleepSeconds(1);
-        feederLever.setPosition(1.0);
+        feederLever.setPosition(0);
         intake.setPower(-1.0);
-        pusher.setPower(-1.0);
-        pusher1.setPower(-1.0);
+        pusher.setPower(-0.5);
+        pusher1.setPower(-0.5);
         sleepSeconds(1);
-        feederLever.setPosition(0.0);
+        intake.setPower(-1.0);
+        pusher.setPower(0);
+        pusher1.setPower(0);
+        feederLever.setPosition(1);
         sleepSeconds(1);
-        feederLever.setPosition(1.0);
+        feederLever.setPosition(0);
 
     }
 
