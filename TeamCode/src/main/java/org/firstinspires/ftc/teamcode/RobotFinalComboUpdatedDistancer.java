@@ -604,7 +604,7 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
             //telemetry.addData("kP", aimPid.getP());
             //telemetry.addData("kF", aimPid.getF());
             //telemetry.addData("IntakePower", intakePower);
-            telemetry.addData("Flywheel actual RPM", flywheel.getVelocity());
+            telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
             telemetry.addData("flywheel target RPM", targetRPM);
             telemetry.addData("flywheelmultiplier", flyWheelPowerMultiplier);
             /*
