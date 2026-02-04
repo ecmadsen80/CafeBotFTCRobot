@@ -430,7 +430,7 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
 
                 if (gamepad1.dpadRightWasPressed()){
                     flyWheelPowerMultiplier += 0.005;
-                })
+                }
 
                 double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
                 flywheel.setVelocity(targetTPS);
