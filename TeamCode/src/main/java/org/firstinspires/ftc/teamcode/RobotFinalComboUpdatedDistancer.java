@@ -432,7 +432,7 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                     flyWheelPowerMultiplier += 0.005;
                 }
 
-                double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
+                double targetTPS = ((targetRPM*flyWheelPowerMultiplier) / 60.0) * TICKS_PER_REV;
                 flywheel.setVelocity(targetTPS);
             }
 
