@@ -408,7 +408,6 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                     turn = pointAtTag();
                 } else {
                     turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
-                    turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
                     aimPid.reset(); // Reset PID memory when not in use
                 }
 
@@ -418,18 +417,26 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                     rightPusher.setPower(PUSHER_POWER);
                 }
 
-                if (gamepad1.dpadDownWasPressed()){
-                    targetRPM += 25;
-                }
                 if (gamepad1.dpadUpWasPressed()){
-                    targetRPM -= 25;
+                    targetRPM += 10;
                 }
+                if (gamepad1.dpadDownWasPressed()){
+                    targetRPM -= 10;
+                }
+
+                if (gamepad1.dpadLeftWasPressed()){
+                    flyWheelPowerMultiplier -= 0.005;
+                }
+
+                if (gamepad1.dpadRightWasPressed()){
+                    flyWheelPowerMultiplier += 0.005;
+                })
 
                 double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
                 flywheel.setVelocity(targetTPS);
             }
 
-            //Aim and Fire Ball
+
 
 
             // 2. Define Rotation Vectors
@@ -534,22 +541,6 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
             }
 
 
-            /*
-            //flywheel manual control
-            if (gamepad1.dpadDownWasPressed()){
-                feederLever.setPosition(0.0);
-            }
-            if (gamepad1.dpadUpWasPressed()){
-                feederLever.setPosition(0.6);
-            }
-            */
-
-            /*
-            double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
-
-            flywheel.setVelocity(targetTPS);
-            */
-
             //singlebutton shoot only
             if (gamepad1.bWasPressed()){
                 shootTheBall();
@@ -613,8 +604,8 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
             //telemetry.addData("kP", aimPid.getP());
             //telemetry.addData("kF", aimPid.getF());
             //telemetry.addData("IntakePower", intakePower);
-            //telemetry.addData("Flywheel RPM", flywheel.getVelocity)
-            telemetry.addData("flywheel RPM", targetRPM);
+            telemetry.addData("Flywheel actual RPM", flywheel.getVelocity());
+            telemetry.addData("flywheel target RPM", targetRPM);
             telemetry.addData("flywheelmultiplier", flyWheelPowerMultiplier);
             /*
             telemetry.addData("Left Target Angle", targetAngleLeft);
@@ -630,8 +621,8 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
             telemetry.addData("ta", result.getTa());
             telemetry.addData("Ball Loaded?", isBallLoaded);
             // ... inside the telemetry block at the end            telemetry.addData("Aim PID kP", aimPid.getP());
-            telemetry.addData("Aim PID kp", aimPid.getP()); //  <-- ADD THIS LINE
-            telemetry.addData("Aim PID kF", aimPid.getF()); //  <-- ADD THIS LINE
+            //telemetry.addData("Aim PID kp", aimPid.getP()); //  <-- ADD THIS LINE
+            //telemetry.addData("Aim PID kF", aimPid.getF()); //  <-- ADD THIS LINE
 
             telemetry.addData("Robot X", robotX);
             telemetry.addData("Robot Y", robotY);
@@ -714,9 +705,12 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
                     //from the Tag. Have to add 180 for Red side.
 
                     //Telemetry data added for troubleshooting and verification
+                    /*
                     telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
                     telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
                     telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+
+                     */
                     break;
 
                     // Repeat for the Blue side
@@ -732,9 +726,13 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
 
                     // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
                     angleFromTagDeg = 180 - (Math.toDegrees(Math.atan2(x, z)));
+
+                    /*
                     telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
                     telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
                     telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+
+                     */
                     break;
                 }
             }
