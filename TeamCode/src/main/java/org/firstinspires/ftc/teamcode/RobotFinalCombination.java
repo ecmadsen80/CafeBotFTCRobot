@@ -8,6 +8,7 @@ import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.I2cDevice;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -66,6 +67,7 @@ public class RobotFinalCombination extends LinearOpMode {
     private static double PUSHER_POWER = 1.0;
 
     private double flyWheelPowerMultiplier = 1.02;
+    private I2cDeviceSynch absEncoder = null;
 
 
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
@@ -120,6 +122,9 @@ public class RobotFinalCombination extends LinearOpMode {
         feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
         laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
         light  = hardwareMap.get(Servo.class, "light");
+        absEncoder = hardwareMap.get(I2cDeviceSynch.class, "absEncoder");
+
+
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -145,6 +150,8 @@ public class RobotFinalCombination extends LinearOpMode {
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
         feederLever.setPosition(0); //down
+
+
 
         //dashboard initialization
         com.acmerobotics.dashboard.FtcDashboard dashboard = com.acmerobotics.dashboard.FtcDashboard.getInstance();
