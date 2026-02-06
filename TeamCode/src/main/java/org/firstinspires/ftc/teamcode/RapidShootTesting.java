@@ -1,0 +1,779 @@
+package org.firstinspires.ftc.teamcode;
+
+
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
+import com.seattlesolvers.solverslib.controller.PIDFController;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+
+
+@TeleOp(name="Test rapid shoot TeleOp", group="Linear OpMode")
+
+public class RapidShootTesting extends LinearOpMode {
+
+    // Declare OpMode members.
+
+    private ElapsedTime runtime = new ElapsedTime();
+    private DcMotorEx leftDrive = null;
+    private DcMotorEx leftTurn = null;
+    private DcMotorEx rightDrive = null;
+    private DcMotorEx rightTurn = null;
+    DcMotorEx flywheel = null;
+    private DcMotor leftPusher;
+    private DcMotor rightPusher;
+    private DcMotor intake;
+    private Servo light;
+    private Limelight3A limelight;
+    private Servo feederLever = null;
+    private DigitalChannel laserInput;
+    private IMU imu;
+
+    //PID Controller for Aiming
+    private PIDFController aimPid = new PIDFController(0.015, 0.0, 0.01, 0.015);
+
+    private PIDFCoefficients pidf = new PIDFCoefficients(110,0.0,0.0,14);
+    private static final double MAX_RPM = 5000;
+    private static final double MIN_RPM = 0;
+
+    private static final double STEP = 50.0;
+    private static final double TICKS_PER_REV = 28.0;
+
+    private static final double RIGHT_STICK_ADJUSTER = 0.7;
+
+    private static final int RED_APRIL_TAG = 24;
+    private static final int BLUE_APRIL_TAG = 20;
+
+    private static double PUSHER_POWER = 1.0;
+
+    private double flyWheelPowerMultiplier = 1;
+
+
+    static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
+    static final double TURN_POWER = 1;
+
+
+    // Max Velocity (in TPS) = (Max RPM * PPR for that gearing)/60
+    // for GoBuilda 5204 223 RPM motor with 751.8 PPR = 2794.19
+    // AI suggested that max is typically around 2500 (90% of max) for "headroom" for
+    // the PID controller
+    static final double TURN_VELOCITY = 2500; //i set to 1000 to move slower
+    static final double DEADZONE = 0.1;
+    //private double pos = 0.284;
+    private double targetRPM = 0;
+    private boolean xToggle = false; //to toggle between fast and slow motor speeds, false = slow
+    //private double turn = 0;
+    private double distance = 0;
+    // Timer to track how long the flywheel RPM has been stable
+    private ElapsedTime rpmStableTimer = new ElapsedTime();
+    // Timer to track how long a ball has been loaded
+    private ElapsedTime ballLoadedTimer = new ElapsedTime();
+
+    private ElapsedTime feederResetTimer = new ElapsedTime();
+    // States for the Aim-and-Shoot subroutine
+    private enum AimState {
+        DRIVING,       // Doing nothing
+        AIMING,     // Robot is turning to face the tag
+        SPINNING_UP,
+        CHECK_FOR_BALL,
+        SHOOTING,    // Robot is aimed, now shooting
+        RECOVERING_SPEED,
+        RESETTING_FEEDER
+    }    // Variable to track the current state
+
+    private AimState currentAimState = AimState.DRIVING;
+    private int shotsFired = 0;
+
+
+    @Override
+    public void runOpMode() {
+
+        //Initialization
+        leftDrive  = hardwareMap.get(DcMotorEx.class, "left_drive");
+        leftTurn   = hardwareMap.get(DcMotorEx.class, "left_turn");
+        rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
+        rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
+        intake     = hardwareMap.get(DcMotor.class, "intake");
+        leftPusher = hardwareMap.get(DcMotor.class, "leftpusher");
+        rightPusher= hardwareMap.get(DcMotor.class, "rightpusher");
+        limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
+        light = hardwareMap.get(Servo.class, "light");
+        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
+        laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
+        light  = hardwareMap.get(Servo.class, "light");
+        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,pidf);
+
+        //Motor Parameter Setup
+        leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        leftTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        leftTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        leftTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        leftTurn.setTargetPosition(0);
+        rightTurn.setTargetPosition(0);
+
+        leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        feederLever.setPosition(0); //down
+
+        //dashboard initialization
+        com.acmerobotics.dashboard.FtcDashboard dashboard = com.acmerobotics.dashboard.FtcDashboard.getInstance();
+        com.acmerobotics.dashboard.telemetry.TelemetryPacket packet = new com.acmerobotics.dashboard.telemetry.TelemetryPacket();
+        com.qualcomm.robotcore.hardware.VoltageSensor batteryVoltageSensor = hardwareMap.voltageSensor.iterator().next();
+
+        //Limelight initialization
+        limelight.pipelineSwitch(0);
+
+        limelight.start();
+
+        laserInput.setMode(DigitalChannel.Mode.INPUT); // <-- ADD THIS LINE
+
+        //IMU initialization
+        imu = hardwareMap.get(IMU.class, "imu");
+
+        RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.DOWN;
+        RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  = RevHubOrientationOnRobot.UsbFacingDirection.LEFT;
+
+        RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(logoDirection, usbDirection);
+
+        imu.initialize(new IMU.Parameters(orientationOnRobot));
+
+        telemetry.addData(">", "Robot Ready.  Press Play.");
+        telemetry.update();
+
+
+        waitForStart();
+
+
+
+        runtime.reset();
+        leftTurn.setPower(1.0); //I'm not sure why this is here
+        rightTurn.setPower(1.0); //Ditto
+
+
+
+
+        while (opModeIsActive()) {
+
+            //LimeLight
+            // Read the beam break sensor
+            // We'll assume 'true' means a ball is present (beam is broken)
+
+            //light.setPosition(0.30);
+
+            LLResult result = limelight.getLatestResult();
+            boolean isBallLoaded = laserInput.getState();
+            //flywheel.setVelocity((1500.0/60.0)*TICKS_PER_REV);
+
+            if (!result.isValid()) {
+                // If we can't see a tag, the light should always be RED.
+                light.setPosition(0.30);
+                telemetry.addData("Limelight", "No data available");
+
+            } else {
+                // If we get here, we know we have a valid target.
+                // Now, check if a ball is loaded to decide between GREEN and BLUE.
+                if (isBallLoaded) {
+                    // Valid target AND ball loaded = GREEN (Ready to shoot)
+                    light.setPosition(0.50);
+
+                } else {
+                    // Valid target BUT no ball loaded = BLUE (Ready to aim/load)
+                    light.setPosition(0.66);
+                }
+
+                // This distance calculation should only happen when the result is valid.
+                distance = distanceFromTag();
+            }
+
+
+            //New Swerve Drive Logic to incorporate Turning while strafing
+            // 1. Capture Joystick Inputs
+            double lx = gamepad1.left_stick_x;
+            double ly = -gamepad1.left_stick_y;
+            double turn = 0;
+
+
+
+
+            // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
+            switch (currentAimState) {
+                case DRIVING:
+                    // If 'A' is pressed, start the aiming process
+
+                    if (gamepad1.aWasPressed()) {
+                        currentAimState = AimState.AIMING;
+                    }
+                    break;
+
+                case AIMING:
+                    // Use the auto-aim logic to turn the robot
+                    turn = pointAtTag();
+
+                    // Check if we are successfully aimed at the target
+                    if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 2 degrees
+                        // If aimed, move to the next state and shoot
+                        distance = distanceFromTag();
+                        targetRPM = 2394.199*Math.pow(distance,0.3470215);
+                        targetRPM = flyWheelPowerMultiplier*targetRPM;
+                        /*
+                        if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
+                            targetRPM *= 0.9;
+                        }
+                        */
+                        rpmStableTimer.reset();
+                        currentAimState = AimState.SPINNING_UP;
+
+                    }
+
+                    // If 'A' is pressed again, cancel the routine
+                    if (gamepad1.aWasPressed()) {
+                        currentAimState = AimState.DRIVING;
+                    }
+                    break;
+
+                case SPINNING_UP:
+                    // In this state, we are aimed, but waiting for the flywheel to be stable.
+                    // Keep the robot aimed at the tag in case it drifts.
+                    turn = pointAtTag();
+                    // <-- Add one more ')' here
+
+                    // Get the current flywheel velocity in RPM
+
+
+                    double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
+
+                    flywheel.setVelocity(targetTPS);
+
+                    double currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
+                    // Check if the flywheel is within the desired speed range (e.g., 95% of target)
+                    if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
+                        // If the speed has been stable for set time (ms) , move to the SHOOTING state.
+                        if (rpmStableTimer.milliseconds() >= 250) {
+                            currentAimState = AimState.SHOOTING;
+                            ballLoadedTimer.reset();
+                        }
+                    } else {
+                        // If the speed drops out of range, reset the stability timer.
+                        rpmStableTimer.reset();
+                    }
+
+                    // Allow the driver to cancel
+                    if (gamepad1.aWasPressed()) {
+                        flywheel.setVelocity(0);
+                        currentAimState = AimState.DRIVING;
+                    }
+                    break;
+
+
+                case SHOOTING:
+                    // This state now uses RPM drop to confirm a shot.
+                    turn = pointAtTag(); // Keep aiming while shooting
+
+                    // --- RPM Drop Detection Logic ---
+
+                    // 1. Get the stable RPM right before we start pushing.
+                    double initialRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
+
+                    // 2. Turn on the pusher motors.
+                    intake.setPower(-1);
+                    leftPusher.setPower(-PUSHER_POWER);
+                    rightPusher.setPower(-PUSHER_POWER);
+
+                    ElapsedTime shotTimer = new ElapsedTime(); // Safety timeout
+
+                    // 3. Loop until RPM drops or we time out.
+                    while (opModeIsActive() && shotTimer.seconds() < 3.0) { // 1-second safety timeout
+                        currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
+
+                        // Check if speed has dropped by more than 10% (adjust as needed)
+                        if (currentRPM < (initialRPM * 0.95)) {
+                            // RPM has dropped, indicating a successful shot. Exit the loop.
+                            break;
+                        }
+                    }
+
+                    // 4. Turn off the pusher motors.
+                    leftPusher.setPower(0);
+                    rightPusher.setPower(0);
+
+                    // --- End of RPM Drop Logic ---
+
+                    // Increment shot counter and move to the recovery state.
+                    shotsFired++;
+                    rpmStableTimer.reset();
+                    currentAimState = AimState.RECOVERING_SPEED;
+                    break;
+
+                case RECOVERING_SPEED:
+                    turn = pointAtTag();
+
+                    currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
+                    targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
+
+                    flywheel.setVelocity(targetTPS);
+
+                    // Check if speed has recovered
+                    if (targetRPM > 0 && Math.abs((currentRPM - targetRPM) / targetRPM) < 0.05) {
+                        // If speed has been stable for a moment, decide what to do next
+                        if (rpmStableTimer.milliseconds() >= 100) {
+                            if (shotsFired >= 3) {
+                                // We are done with all shots, go back to driving
+                                currentAimState = AimState.DRIVING;
+                                flywheel.setVelocity(0); // Turn off flywheel
+                            } else {
+                                // We have more shots to fire. Run intake and prepare for the next shot.
+                                intake.setPower(-1.0);
+                                leftPusher.setPower(-PUSHER_POWER);
+                                rightPusher.setPower(-PUSHER_POWER);
+                                // You might want a CHECK_FOR_BALL state here to wait,
+                                // but for a simple rapid fire, a fixed sleep is an option.
+                                sleep(400); // Give intake time to grab the next ball
+                                intake.setPower(0);
+                                leftPusher.setPower(0);
+                                rightPusher.setPower(0);
+                                // Go back to SHOOTING for the next ball
+                                currentAimState = AimState.SHOOTING;
+                            }
+                        }
+                    } else {
+                        // If speed is not stable, reset the timer
+                        rpmStableTimer.reset();
+                    }
+
+                    // Cancel logic
+                    if (gamepad1.aWasPressed()) {
+                        currentAimState = AimState.DRIVING;
+                        flywheel.setVelocity(0);
+                    }
+                    break;
+
+                case RESETTING_FEEDER:
+                    // This state is a simple timer-based delay.
+                    // It gives the feederLever servo time to fully retract
+                    // before we start checking the laser sensor for the next ball.
+
+                    // Keep aiming at the tag during this short wait.
+                    turn = pointAtTag();
+
+                    // Wait for 500 milliseconds
+                    if (feederResetTimer.milliseconds() >= 500) {
+                        // The feeder has had enough time to retract. Now look for a ball.
+                        ballLoadedTimer.reset(); // Reset the ball stability timer for the next check
+                        currentAimState = AimState.CHECK_FOR_BALL;
+                    }
+
+                    // Allow the driver to cancel
+                    if (gamepad1.aWasPressed()) {
+                        currentAimState = AimState.DRIVING;
+                        flywheel.setVelocity(0);
+                        shotsFired = 0;
+                    }
+                    break;
+            }
+
+
+
+
+            //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
+            // Make sure the state machine is not running before allowing manual control
+            if (currentAimState == AimState.DRIVING) {
+                if (gamepad1.right_bumper) {
+                    turn = pointAtTag();
+                } else {
+                    turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
+                    aimPid.reset(); // Reset PID memory when not in use
+                }
+
+                if (gamepad1.y){
+                    intake.setPower(-1);
+                }
+
+                if (gamepad1.left_bumper){
+                    intake.setPower(1);
+                    leftPusher.setPower(PUSHER_POWER);
+                    rightPusher.setPower(PUSHER_POWER);
+                }
+
+                if (gamepad1.dpadUpWasPressed()){
+                    targetRPM += 100;
+                }
+                if (gamepad1.dpadDownWasPressed()){
+                    targetRPM -= 100;
+                }
+
+                if (gamepad1.dpadLeftWasPressed()){
+                    pidf.f -=1;
+                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
+                }
+
+                if (gamepad1.dpadRightWasPressed()){
+                    pidf.f +=1;
+                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
+                }
+
+                double targetTPS = ((targetRPM*flyWheelPowerMultiplier) / 60.0) * TICKS_PER_REV;
+                flywheel.setVelocity(targetTPS);
+            }
+
+
+
+
+            // 2. Define Rotation Vectors
+            // For a 2-module robot to spin, one wheel points "up/left" and the other "up/right"
+            // We'll assume the modules are on the left and right sides.
+            double leftRotationX = 0;   // Vertical component of rotation for left pod
+            double leftRotationY = turn;
+            double rightRotationX = 0;
+            double rightRotationY = -turn;
+
+            // 3. Combine Translation (Left Stick) and Rotation (Right Stick)
+            double combinedLeftX = lx + leftRotationX;
+            double combinedLeftY = ly + leftRotationY;
+            double combinedRightX = lx + rightRotationX;
+            double combinedRightY = ly + rightRotationY;
+
+            // 4. Calculate Individual Magnitudes and Angles
+            double magLeft = Math.hypot(combinedLeftX, combinedLeftY);
+            double magRight = Math.hypot(combinedRightX, combinedRightY);
+
+            double targetAngleLeft = Math.toDegrees(Math.atan2(combinedLeftX, combinedLeftY));
+            double targetAngleRight = Math.toDegrees(Math.atan2(combinedRightX, combinedRightY));
+
+            if (targetAngleLeft < 0) targetAngleLeft += 360;
+            if (targetAngleRight < 0) targetAngleRight += 360;
+
+            //get current encoder positions
+            int leftCurrentTicks = leftTurn.getCurrentPosition();
+            int rightCurrentTicks = rightTurn.getCurrentPosition();
+            // Convert to degrees
+            int leftCurrentDegrees = (int)((leftCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
+            int rightCurrentDegrees = (int)((rightCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
+
+            // 5. Optimization for LEFT Pod
+            double driveMultLeft = 1.0;
+            double diffLeft = closestAngle(targetAngleLeft, leftCurrentDegrees); //here closest angle for turning the wheel is calculated
+            if (Math.abs(diffLeft) > 90) {                                       //if the closest angle is > 90 deg
+                driveMultLeft = -1.0;                                            //reverses the direction of the motor using "driveMultLeft"
+                targetAngleLeft = (targetAngleLeft + 180) % 360;                 //adjusts the angle to the opposite angle
+            }
+
+            // 6. Optimization for RIGHT Pod
+            double driveMultRight = 1.0;
+            double diffRight = closestAngle(targetAngleRight, rightCurrentDegrees);
+            if (Math.abs(diffRight) > 90) {
+                driveMultRight = -1.0;
+                targetAngleRight = (targetAngleRight + 180) % 360;
+            }
+
+            // 7. Calculate Final Motor Targets
+            double moveLeft = closestAngle(targetAngleLeft, leftCurrentDegrees) + leftCurrentDegrees;
+            double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
+
+            leftTurn.setTargetPosition((int)((moveLeft / 360.0) * TURN_TICKS_PER_REV));
+            rightTurn.setTargetPosition((int)((moveRight / 360.0) * TURN_TICKS_PER_REV));
+
+            leftTurn.setVelocity(TURN_VELOCITY);
+            rightTurn.setVelocity(TURN_VELOCITY);
+
+            // 8. Apply Final Drive Power
+            // Normalize magnitudes if they exceed 1.0
+            double maxMag = Math.max(1.0, Math.max(magLeft, magRight));
+
+
+            // Switch between fast speed and slow speed
+            if (gamepad1.xWasPressed()) {
+                xToggle = !xToggle; // Switches true to false or false to true
+            }
+
+
+
+            // Determine the speed multiplier based on the toggle state
+            double speedLimit = xToggle ? 0.5 : 1.0;
+
+            // Motor power combination of left and right sides and fast/slow state
+            leftDrive.setPower(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
+            rightDrive.setPower(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
+
+
+
+
+            //Intake
+            //isBallLoaded = laserInput.getState();
+            double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
+            if (intakePower > 0.1 && feederLever.getPosition() != 1.0) {
+                intake.setPower(-1.0);
+                leftPusher.setPower(-PUSHER_POWER);
+                rightPusher.setPower(-PUSHER_POWER);
+
+            }
+            else if (intakePower < -0.1 && feederLever.getPosition() != 1.0) {
+                intake.setPower(1.0);
+                leftPusher.setPower(0);
+                rightPusher.setPower(0);
+            }
+            else {
+                //Rest Powers to 0 when buttons not pushed
+                intake.setPower(0.0);
+                leftPusher.setPower(0);
+                rightPusher.setPower(0);
+            }
+
+
+            //singlebutton shoot only
+            if (gamepad1.bWasPressed()){
+                shootTheBall();
+            }
+
+
+
+            // Deadzone
+            if (magLeft < DEADZONE && magRight < DEADZONE) {
+                leftDrive.setPower(0);
+                rightDrive.setPower(0);
+                leftTurn.setVelocity(0); //setVelocity actively holds the motor in it's current position
+                rightTurn.setVelocity(0);
+            }
+
+
+
+            //Dashboard Graphing
+            double currentLeftDrive  = leftDrive.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
+            double currentRightDrive = rightDrive.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
+            double currentLeftTurn   = leftTurn.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
+            double currentRightTurn  = rightTurn.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
+
+            double voltage = batteryVoltageSensor.getVoltage();
+
+            packet.put("Battery Voltage", voltage);
+            packet.put("Current/Left Drive (A)", currentLeftDrive);
+            packet.put("Current/Right Drive (A)", currentRightDrive);
+            packet.put("Current/Left Turn (A)", currentLeftTurn);
+            packet.put("Current/Right Turn (A)", currentRightTurn);
+
+            dashboard.sendTelemetryPacket(packet);
+
+            // --- Field Position and Heading Acquisition ---
+            double robotX = 0;
+            double robotY = 0;
+            double robotHeading = 0;
+            double robotHeadingMT2 = 0;
+
+            // Get Yaw (Heading) from the IMU for stability and low latency
+            robotHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+
+            //YawPitchRollAngles orientation = imu.getRobotYawPitchRollAngles();
+            limelight.updateRobotOrientation(robotHeading);
+            result = limelight.getLatestResult();
+            Pose3D botpose = result.getBotpose_MT2();
+
+
+            // Optional: Reset IMU heading to zero if the Back button is pressed
+            if (gamepad1.backWasPressed()) {
+                imu.resetYaw();
+            }
+
+            //LL wants the z-axis to be zero when the robot is facing from the blue goal towards
+            //the red goal. When that is put in and the robot is placed on the tip of the triangle in
+            //the middle of the field, it reads (0,-2.6) when pointed at one april tag and (-2.6,0) when
+            //pointed at the other.
+
+
+            // Telemetry
+            //telemetry.addData("kP", aimPid.getP());
+            //telemetry.addData("kF", aimPid.getF());
+            //telemetry.addData("IntakePower", intakePower);
+            telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
+            telemetry.addData("flywheel target RPM", targetRPM);
+            telemetry.addData("flywheelmultiplier", flyWheelPowerMultiplier);
+            telemetry.addData("pidf f", pidf.f);
+            /*
+            telemetry.addData("Left Target Angle", targetAngleLeft);
+            telemetry.addData("Right Target Angle", targetAngleRight);
+            telemetry.addData("Left Move To", moveLeft);
+            telemetry.addData("Right Move To", moveRight);
+            telemetry.addData("Left Current Deg", leftCurrentDegrees);
+            telemetry.addData("Right Current Deg", rightCurrentDegrees);
+
+             */
+            telemetry.addData("distance:", "%.2f", distance);
+            telemetry.addData("tx", result.getTx());
+            telemetry.addData("ta", result.getTa());
+            telemetry.addData("Ball Loaded?", isBallLoaded);
+            // ... inside the telemetry block at the end            telemetry.addData("Aim PID kP", aimPid.getP());
+            //telemetry.addData("Aim PID kp", aimPid.getP()); //  <-- ADD THIS LINE
+            //telemetry.addData("Aim PID kF", aimPid.getF()); //  <-- ADD THIS LINE
+
+            telemetry.addData("Robot X", robotX);
+            telemetry.addData("Robot Y", robotY);
+            telemetry.addData("robot Heading IMU", robotHeading);
+            telemetry.addData("robot Heading MT2", robotHeadingMT2);
+            telemetry.addData("botpose", botpose.toString());
+            telemetry.addData("Angle bot is from April Tag", angleFromAprilTag());
+
+            //telemetry.addData("Raw mag", rawMag);
+            //telemetry.addData("Mag", mag);
+            //telemetry.addData("XY", "%.2f %.2f", x, y);
+            telemetry.update();
+
+
+
+        }
+
+    }
+    //method to calculate the smallest angle between the current wheel angle and the desired wheel angle
+    //to minimize swerveDrive rotation
+    private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
+        double dir = (target % 360) - (current % 360);           //reduces encoder angle to a value between 0 and 359
+        if (Math.abs(dir) > 180.0) {                             //If the angle is > 180 degrees
+            dir = -(Math.signum(dir) * 360.0) + dir;            //subtracts the angle from 360
+        }
+        return dir;
+    }
+
+    public static void sleepSeconds(int seconds) {
+        try {
+            Thread.sleep(seconds * 1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+    private void shootTheBall() {
+        feederLever.setPosition(1.0); //fires one ball
+        sleep(800);
+        feederLever.setPosition(0.0);
+
+    }
+
+    private double pointAtTag() {
+        LLResult result = limelight.getLatestResult();
+
+
+        if (result != null && result.isValid()) {
+            // SolversLib uses calculate(target, current)
+            // We want the horizontal offset (tx) to be 0
+            double target = result.getTx();
+
+
+            double pidOutput = aimPid.calculate(0, target);
+            return Range.clip(pidOutput, -1.0, 1.0);
+        }
+
+        aimPid.reset(); // Clear integral sum when target is lost
+        return 0;
+    }
+
+    private double angleFromAprilTag(){ // Function returns the angle the robot is from the AprilTag
+
+        double angleFromTagDeg = 0;
+        LLResult result = limelight.getLatestResult();
+
+        if (result != null && result.isValid()) {
+
+            List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults(); // Get the list of all visible tags
+            for (LLResultTypes.FiducialResult fr : fiducials) {
+                if (fr.getFiducialId() == RED_APRIL_TAG) {                          //This identifies the Red AprilTag
+                    telemetry.addData("Red April Tag", "Found");
+                    Pose3D targetPose = fr.getRobotPoseTargetSpace();               //Gets the "pose" of the robot relative to the AprilTag
+                    double x = targetPose.getPosition().x;                          //Obtains x, y, and z of the robot relative to the AprilTag
+                    double y = targetPose.getPosition().y;
+                    double z = targetPose.getPosition().z;
+                    double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
+
+                    // Bearing from tag to camera in tag plane: x is the "left/right" distance, z is the distance straight out from the Tag
+                    angleFromTagDeg = Math.toDegrees(Math.atan2(x, z)) + 180;       //This does the math to calculate the angle of the robot from
+                    //from the Tag. Have to add 180 for Red side.
+
+                    //Telemetry data added for troubleshooting and verification
+                    /*
+                    telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
+                    telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
+                    telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+
+                     */
+                    break;
+
+                    // Repeat for the Blue side
+                } else if (fr.getFiducialId() == BLUE_APRIL_TAG) {
+                    telemetry.addData("Blue April Tag", "Found");
+
+                    Pose3D targetPose = fr.getRobotPoseTargetSpace();
+
+                    double x = targetPose.getPosition().x; // camera X in tag frame
+                    double y = targetPose.getPosition().y; // camera Y in tag frame
+                    double z = targetPose.getPosition().z;
+                    double yaw = targetPose.getOrientation().getYaw(AngleUnit.DEGREES);
+
+                    // Bearing from tag to camera in tag plane (check LL axis docs for sign/axis)
+                    angleFromTagDeg = 180 - (Math.toDegrees(Math.atan2(x, z)));
+
+                    /*
+                    telemetry.addData("x, y, z, yaw", "%.2f, %.2f, %.2f, %.2f", x, y, z, yaw);
+                    telemetry.addData("Target Orientation", targetPose.getOrientation().toString());
+                    telemetry.addData("angleFromTagDeg", angleFromTagDeg);
+
+                     */
+                    break;
+                }
+            }
+        }
+
+        return angleFromTagDeg;
+    }
+
+    private double distanceFromTag() {
+        LLResult result = limelight.getLatestResult();
+        double distance = 0;
+        List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults(); // Get the list of all visible tags
+        for (LLResultTypes.FiducialResult fr : fiducials) {
+            if (fr.getFiducialId() == RED_APRIL_TAG || fr.getFiducialId() == BLUE_APRIL_TAG) {
+                Pose3D targetPose = fr.getRobotPoseTargetSpace();               //Gets the "pose" of the robot relative to the AprilTag
+                double x = targetPose.getPosition().x;                          //Obtains x, y, and z of the robot relative to the AprilTag
+                double y = targetPose.getPosition().y;
+                double z = targetPose.getPosition().z;
+
+                telemetry.addData("April Tag", "Found");
+                distance = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
+                telemetry.addData("distanceFromTag", distance);
+                telemetry.addData("Formula Distance", Math.pow((result.getTa() / 9946.27), -0.560091));
+
+
+            }
+        }
+        return distance;
+    }
+
+
+
+
+}
