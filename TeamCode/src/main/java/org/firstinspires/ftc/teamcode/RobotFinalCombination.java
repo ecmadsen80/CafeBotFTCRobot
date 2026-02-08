@@ -5,10 +5,8 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
-import com.qualcomm.robotcore.hardware.I2cDevice;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -27,7 +25,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
-@Disabled
+
 @TeleOp(name="A Working TeleOp", group="Linear OpMode")
 
 public class RobotFinalCombination extends LinearOpMode {
@@ -67,7 +65,6 @@ public class RobotFinalCombination extends LinearOpMode {
     private static double PUSHER_POWER = 1.0;
 
     private double flyWheelPowerMultiplier = 1.02;
-    private I2cDeviceSynch absEncoder = null;
 
 
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
@@ -122,9 +119,6 @@ public class RobotFinalCombination extends LinearOpMode {
         feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
         laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
         light  = hardwareMap.get(Servo.class, "light");
-        absEncoder = hardwareMap.get(I2cDeviceSynch.class, "absEncoder");
-
-
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -150,8 +144,6 @@ public class RobotFinalCombination extends LinearOpMode {
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
         feederLever.setPosition(0); //down
-
-
 
         //dashboard initialization
         com.acmerobotics.dashboard.FtcDashboard dashboard = com.acmerobotics.dashboard.FtcDashboard.getInstance();
@@ -236,10 +228,6 @@ public class RobotFinalCombination extends LinearOpMode {
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
             switch (currentAimState) {
                 case DRIVING:
-
-                    //targetRPM = 2000;
-                    //double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
-                    //flywheel.setVelocity(targetTPS);
                     // If 'A' is pressed, start the aiming process
                     if (gamepad1.aWasPressed()) {
                         currentAimState = AimState.AIMING;
@@ -286,7 +274,7 @@ public class RobotFinalCombination extends LinearOpMode {
                     // Check if the flywheel is within the desired speed range (e.g., 95% of target)
                     if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
                         // If the speed has been stable for set time (ms) , move to the SHOOTING state.
-                        if (rpmStableTimer.milliseconds() >= 250) {
+                        if (rpmStableTimer.milliseconds() >= 150) {
                             currentAimState = AimState.CHECK_FOR_BALL;
                             ballLoadedTimer.reset();
                         }
@@ -416,22 +404,6 @@ public class RobotFinalCombination extends LinearOpMode {
                     turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
                     aimPid.reset(); // Reset PID memory when not in use
                 }
-
-                if (gamepad1.left_bumper){
-                    intake.setPower(1);
-                    leftPusher.setPower(PUSHER_POWER);
-                    rightPusher.setPower(PUSHER_POWER);
-                }
-
-                if (gamepad1.dpadDownWasPressed()){
-                    targetRPM += 25;
-                }
-                if (gamepad1.dpadUpWasPressed()){
-                    targetRPM -= 25;
-                }
-
-                double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
-                flywheel.setVelocity(targetTPS);
             }
 
             //Aim and Fire Ball
@@ -543,26 +515,26 @@ public class RobotFinalCombination extends LinearOpMode {
             }
 
 
-
-            //flywheel manual control
-
-
-
             /*
+            //flywheel manual control
+            if (gamepad1.dpadDownWasPressed()){
+                feederLever.setPosition(0.0);
+            }
+            if (gamepad1.dpadUpWasPressed()){
+                feederLever.setPosition(0.6);
+            }
+            */
 
-
+            // Convert RPM → ticks per second
             double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
 
-
+            // Apply velocity
             flywheel.setVelocity(targetTPS);
-            */
 
             //singlebutton shoot only
             if (gamepad1.bWasPressed()){
                 shootTheBall();
             }
-
-
 
 
 
