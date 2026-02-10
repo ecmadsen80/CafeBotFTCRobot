@@ -209,7 +209,7 @@ public class RapidShootTesting extends LinearOpMode {
 
                 } else {
                     // Valid target BUT no ball loaded = BLUE (Ready to aim/load)
-                    light.setPosition(0.66); 
+                    light.setPosition(0.66);
                 }
 
                 // This distance calculation should only happen when the result is valid.

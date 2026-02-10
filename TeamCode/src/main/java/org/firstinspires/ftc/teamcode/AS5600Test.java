@@ -37,7 +37,7 @@ public class AS5600Test extends LinearOpMode {
         while (opModeIsActive()) {
 
             double degrees = getAngle();
-
+            double rawAngle = getRawAngle();
             telemetry.addData("Raw Angle", rawAngle);
             telemetry.addData("Degrees", degrees);
             telemetry.update();
@@ -52,5 +52,15 @@ public class AS5600Test extends LinearOpMode {
 
         int rawAngle = ((high << 8) | low) & 0x0FFF;
         return rawAngle * 360.0 / 4096.0;
+    }
+
+    private double getRawAngle(){
+        byte[] angleBytes = as5600.read(ANGLE_REGISTER, 2);
+
+        int high = angleBytes[0] & 0xFF;
+        int low = angleBytes[1] & 0xFF;
+
+        int rawAngle = ((high << 8) | low) & 0x0FFF;
+        return rawAngle;
     }
 }

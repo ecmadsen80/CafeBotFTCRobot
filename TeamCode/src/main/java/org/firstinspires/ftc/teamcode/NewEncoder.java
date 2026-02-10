@@ -10,7 +10,7 @@ import com.qualcomm.robotcore.hardware.I2cDeviceSynchImplOnSimple;
 import com.qualcomm.robotcore.hardware.I2cDevice;
 
 @TeleOp(name = "AS5600 Absolute Encoder Example", group = "Test")
-public class AS5600Example extends LinearOpMode {
+public class NewEncoder extends LinearOpMode {
 
     // Motor
     private DcMotor motor;
