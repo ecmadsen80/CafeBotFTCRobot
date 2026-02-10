@@ -36,7 +36,7 @@ public class NewEncoder extends LinearOpMode {
 
         // ----- AS5600 Setup -----
         as5600Device = hardwareMap.get(I2cDevice.class, "as5600");
-        as5600 = new I2cDeviceSynchImplOnSimple(as5600Device, I2cAddr.create7bit(AS5600_ADDR));
+        as5600 = new I2cDeviceSynchDevice(as5600Device, I2cAddr.create7bit(AS5600_ADDR), false);
         as5600.engage();
 
         telemetry.addLine("Initialized");
