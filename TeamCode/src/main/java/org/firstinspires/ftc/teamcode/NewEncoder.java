@@ -34,10 +34,13 @@ public class NewEncoder extends LinearOpMode {
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        // ----- AS5600 Setup -----
-        as5600Device = hardwareMap.get(I2cDevice.class, "as5600");
-        as5600 = new I2cDeviceSynchDevice(as5600Device, I2cAddr.create7bit(AS5600_ADDR), false);
-        as5600.engage();
+
+        // ----- AS5600 Setup (Modern SDK approach) -----
+        final I2cDevice i2cDevice = hardwareMap.get(I2cDevice.class, "as5600");
+        final I2cAddr i2cAddr = I2cAddr.create7bit(AS5600_ADDR);
+
+        // ----- AS5600 Setup (Corrected for SDK 11.0.0+) -----
+        as5600 = hardwareMap.get(I2cDeviceSynch.class, "as5600");
 
         telemetry.addLine("Initialized");
         telemetry.update();
