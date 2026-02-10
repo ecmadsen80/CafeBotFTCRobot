@@ -11,7 +11,7 @@ import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import java.util.ArrayList;
+
 import java.util.List;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -23,7 +23,6 @@ import com.seattlesolvers.solverslib.controller.PIDFController;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 
 @TeleOp(name="Test rapid shoot TeleOp", group="Linear OpMode")
@@ -38,12 +37,12 @@ public class RapidShootTesting extends LinearOpMode {
     private DcMotorEx rightDrive = null;
     private DcMotorEx rightTurn = null;
     DcMotorEx flywheel = null;
-    private DcMotor leftPusher;
-    private DcMotor rightPusher;
+    private DcMotor inPusher;
+    private DcMotor upPusher;
     private DcMotor intake;
     private Servo light;
     private Limelight3A limelight;
-    private Servo feederLever = null;
+    //private Servo feederLever = null;
     private DigitalChannel laserInput;
     private IMU imu;
 
@@ -51,10 +50,7 @@ public class RapidShootTesting extends LinearOpMode {
     private PIDFController aimPid = new PIDFController(0.015, 0.0, 0.01, 0.015);
 
     private PIDFCoefficients pidf = new PIDFCoefficients(110,0.0,0.0,14);
-    private static final double MAX_RPM = 5000;
-    private static final double MIN_RPM = 0;
 
-    private static final double STEP = 50.0;
     private static final double TICKS_PER_REV = 28.0;
 
     private static final double RIGHT_STICK_ADJUSTER = 0.7;
@@ -64,11 +60,11 @@ public class RapidShootTesting extends LinearOpMode {
 
     private static double PUSHER_POWER = 1.0;
 
-    private double flyWheelPowerMultiplier = 1;
+    private double flyWheelPowerMultiplier = 1.02;
 
 
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
-    static final double TURN_POWER = 1;
+
 
 
     // Max Velocity (in TPS) = (Max RPM * PPR for that gearing)/60
@@ -77,10 +73,10 @@ public class RapidShootTesting extends LinearOpMode {
     // the PID controller
     static final double TURN_VELOCITY = 2500; //i set to 1000 to move slower
     static final double DEADZONE = 0.1;
-    //private double pos = 0.284;
+
     private double targetRPM = 0;
     private boolean xToggle = false; //to toggle between fast and slow motor speeds, false = slow
-    //private double turn = 0;
+
     private double distance = 0;
     // Timer to track how long the flywheel RPM has been stable
     private ElapsedTime rpmStableTimer = new ElapsedTime();
@@ -112,12 +108,12 @@ public class RapidShootTesting extends LinearOpMode {
         rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
         rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
         intake     = hardwareMap.get(DcMotor.class, "intake");
-        leftPusher = hardwareMap.get(DcMotor.class, "leftpusher");
-        rightPusher= hardwareMap.get(DcMotor.class, "rightpusher");
+        inPusher = hardwareMap.get(DcMotor.class, "leftpusher");
+        upPusher = hardwareMap.get(DcMotor.class, "rightpusher");
         limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
         light = hardwareMap.get(Servo.class, "light");
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
+        //feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
         laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
         light  = hardwareMap.get(Servo.class, "light");
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -144,7 +140,7 @@ public class RapidShootTesting extends LinearOpMode {
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        feederLever.setPosition(0); //down
+        //feederLever.setPosition(0); //down
 
         //dashboard initialization
         com.acmerobotics.dashboard.FtcDashboard dashboard = com.acmerobotics.dashboard.FtcDashboard.getInstance();
@@ -192,7 +188,7 @@ public class RapidShootTesting extends LinearOpMode {
             //light.setPosition(0.30);
 
             LLResult result = limelight.getLatestResult();
-            boolean isBallLoaded = laserInput.getState();
+            //boolean isBallLoaded = laserInput.getState();
             //flywheel.setVelocity((1500.0/60.0)*TICKS_PER_REV);
 
             if (!result.isValid()) {
@@ -201,16 +197,8 @@ public class RapidShootTesting extends LinearOpMode {
                 telemetry.addData("Limelight", "No data available");
 
             } else {
-                // If we get here, we know we have a valid target.
-                // Now, check if a ball is loaded to decide between GREEN and BLUE.
-                if (isBallLoaded) {
-                    // Valid target AND ball loaded = GREEN (Ready to shoot)
+                // Valid target = GREEN (Ready to shoot)
                     light.setPosition(0.50);
-
-                } else {
-                    // Valid target BUT no ball loaded = BLUE (Ready to aim/load)
-                    light.setPosition(0.66);
-                }
 
                 // This distance calculation should only happen when the result is valid.
                 distance = distanceFromTag();
@@ -241,16 +229,15 @@ public class RapidShootTesting extends LinearOpMode {
                     turn = pointAtTag();
 
                     // Check if we are successfully aimed at the target
-                    if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 2 degrees
+                    if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 5 degrees
                         // If aimed, move to the next state and shoot
                         distance = distanceFromTag();
                         targetRPM = 2394.199*Math.pow(distance,0.3470215);
-                        targetRPM = flyWheelPowerMultiplier*targetRPM;
-                        /*
-                        if (angleFromAprilTag() > 30 && angleFromAprilTag() < 150) {
-                            targetRPM *= 0.9;
+                        if (distance > 2) {
+                            targetRPM = flyWheelPowerMultiplier*targetRPM;
                         }
-                        */
+
+
                         rpmStableTimer.reset();
                         currentAimState = AimState.SPINNING_UP;
 
@@ -297,35 +284,34 @@ public class RapidShootTesting extends LinearOpMode {
 
 
                 case SHOOTING:
-                    // This state now uses RPM drop to confirm a shot.
+
                     turn = pointAtTag(); // Keep aiming while shooting
 
-                    // --- RPM Drop Detection Logic ---
-
-                    // 1. Get the stable RPM right before we start pushing.
+                   // 1. Get the stable RPM right before we start pushing.
                     double initialRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
 
                     // 2. Turn on the pusher motors.
                     intake.setPower(-1);
-                    leftPusher.setPower(-PUSHER_POWER);
-                    rightPusher.setPower(-PUSHER_POWER);
+                    inPusher.setPower(-PUSHER_POWER);
+                    upPusher.setPower(-PUSHER_POWER);
 
                     ElapsedTime shotTimer = new ElapsedTime(); // Safety timeout
 
                     // 3. Loop until RPM drops or we time out.
-                    while (opModeIsActive() && shotTimer.seconds() < 3.0) { // 1-second safety timeout
+                    while (opModeIsActive() && shotTimer.seconds() < 3.0) { // 3-second safety timeout
                         currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
 
-                        // Check if speed has dropped by more than 10% (adjust as needed)
-                        if (currentRPM < (initialRPM * 0.95)) {
+                        // Check if speed has dropped by more than 2% (adjust as needed)
+                        if (currentRPM < (initialRPM * 0.98)) {
                             // RPM has dropped, indicating a successful shot. Exit the loop.
                             break;
                         }
                     }
 
-                    // 4. Turn off the pusher motors.
-                    leftPusher.setPower(0);
-                    rightPusher.setPower(0);
+                    // 4. Turn off the pusher motors and intake
+                    intake.setPower(0);
+                    inPusher.setPower(0);
+                    upPusher.setPower(0);
 
                     // --- End of RPM Drop Logic ---
 
@@ -349,19 +335,12 @@ public class RapidShootTesting extends LinearOpMode {
                         if (rpmStableTimer.milliseconds() >= 100) {
                             if (shotsFired >= 3) {
                                 // We are done with all shots, go back to driving
+                                shotsFired = 0;
                                 currentAimState = AimState.DRIVING;
-                                flywheel.setVelocity(0); // Turn off flywheel
+
                             } else {
-                                // We have more shots to fire. Run intake and prepare for the next shot.
-                                intake.setPower(-1.0);
-                                leftPusher.setPower(-PUSHER_POWER);
-                                rightPusher.setPower(-PUSHER_POWER);
-                                // You might want a CHECK_FOR_BALL state here to wait,
-                                // but for a simple rapid fire, a fixed sleep is an option.
-                                sleep(400); // Give intake time to grab the next ball
-                                intake.setPower(0);
-                                leftPusher.setPower(0);
-                                rightPusher.setPower(0);
+                                // We have more shots to fire.
+
                                 // Go back to SHOOTING for the next ball
                                 currentAimState = AimState.SHOOTING;
                             }
@@ -378,28 +357,7 @@ public class RapidShootTesting extends LinearOpMode {
                     }
                     break;
 
-                case RESETTING_FEEDER:
-                    // This state is a simple timer-based delay.
-                    // It gives the feederLever servo time to fully retract
-                    // before we start checking the laser sensor for the next ball.
 
-                    // Keep aiming at the tag during this short wait.
-                    turn = pointAtTag();
-
-                    // Wait for 500 milliseconds
-                    if (feederResetTimer.milliseconds() >= 500) {
-                        // The feeder has had enough time to retract. Now look for a ball.
-                        ballLoadedTimer.reset(); // Reset the ball stability timer for the next check
-                        currentAimState = AimState.CHECK_FOR_BALL;
-                    }
-
-                    // Allow the driver to cancel
-                    if (gamepad1.aWasPressed()) {
-                        currentAimState = AimState.DRIVING;
-                        flywheel.setVelocity(0);
-                        shotsFired = 0;
-                    }
-                    break;
             }
 
 
@@ -421,8 +379,8 @@ public class RapidShootTesting extends LinearOpMode {
 
                 if (gamepad1.left_bumper){
                     intake.setPower(1);
-                    leftPusher.setPower(PUSHER_POWER);
-                    rightPusher.setPower(PUSHER_POWER);
+                    inPusher.setPower(PUSHER_POWER);
+                    upPusher.setPower(PUSHER_POWER);
                 }
 
                 if (gamepad1.dpadUpWasPressed()){
@@ -432,17 +390,29 @@ public class RapidShootTesting extends LinearOpMode {
                     targetRPM -= 100;
                 }
 
-                if (gamepad1.dpadLeftWasPressed()){
+                //Using Gamepad2 to adjust the flywheel PIDF coefficients
+
+                if (gamepad2.dpadLeftWasPressed()){
                     pidf.f -=1;
                     flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
                 }
 
-                if (gamepad1.dpadRightWasPressed()){
+                if (gamepad2.dpadRightWasPressed()){
                     pidf.f +=1;
                     flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
                 }
 
-                double targetTPS = ((targetRPM*flyWheelPowerMultiplier) / 60.0) * TICKS_PER_REV;
+                if (gamepad2.dpadUpWasPressed()){
+                    pidf.p +=5;
+                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
+                }
+
+                if(gamepad2.dpadDownWasPressed()){
+                    pidf.p -=5;
+                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
+                }
+
+                double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
                 flywheel.setVelocity(targetTPS);
             }
 
@@ -528,32 +498,34 @@ public class RapidShootTesting extends LinearOpMode {
 
 
 
-            //Intake
-            //isBallLoaded = laserInput.getState();
+            //Right trigger intakes (but doesn't activate upPusher)
+            //Left trigger outtakes (but doesn't activate upPusher)
+            //b-button runs intake and both pushers, hopefully shooting
             double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
-            if (intakePower > 0.1 && feederLever.getPosition() != 1.0) {
+            if (intakePower > 0.1) {
                 intake.setPower(-1.0);
-                leftPusher.setPower(-PUSHER_POWER);
-                rightPusher.setPower(-PUSHER_POWER);
-
+                inPusher.setPower(-PUSHER_POWER);
             }
-            else if (intakePower < -0.1 && feederLever.getPosition() != 1.0) {
+            else if (intakePower < -0.1) {
                 intake.setPower(1.0);
-                leftPusher.setPower(0);
-                rightPusher.setPower(0);
+                inPusher.setPower(PUSHER_POWER);
+            }
+
+            else if (gamepad1.b){
+                intake.setPower(-1);
+                inPusher.setPower(-PUSHER_POWER);
+                upPusher.setPower(-PUSHER_POWER);
             }
             else {
                 //Rest Powers to 0 when buttons not pushed
                 intake.setPower(0.0);
-                leftPusher.setPower(0);
-                rightPusher.setPower(0);
+                inPusher.setPower(0);
+                upPusher.setPower(0);
             }
 
 
             //singlebutton shoot only
-            if (gamepad1.bWasPressed()){
-                shootTheBall();
-            }
+
 
 
 
@@ -613,9 +585,11 @@ public class RapidShootTesting extends LinearOpMode {
             //telemetry.addData("kP", aimPid.getP());
             //telemetry.addData("kF", aimPid.getF());
             //telemetry.addData("IntakePower", intakePower);
+            telemetry.addData("shot counter", shotsFired);)
             telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
             telemetry.addData("flywheel target RPM", targetRPM);
             telemetry.addData("flywheelmultiplier", flyWheelPowerMultiplier);
+            telemetry.addData("pidf p", pidf.p);
             telemetry.addData("pidf f", pidf.f);
             /*
             telemetry.addData("Left Target Angle", targetAngleLeft);
@@ -668,12 +642,19 @@ public class RapidShootTesting extends LinearOpMode {
             Thread.currentThread().interrupt();
         }
     }
+
+    /*
     private void shootTheBall() {
-        feederLever.setPosition(1.0); //fires one ball
-        sleep(800);
-        feederLever.setPosition(0.0);
+        intake.setPower(-1.0);
+        inPusher.setPower(-PUSHER_POWER);
+        upPusher.setPower(-PUSHER_POWER);
+        sleep(1000);
 
     }
+
+     */
+
+
 
     private double pointAtTag() {
         LLResult result = limelight.getLatestResult();
