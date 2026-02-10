@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -9,6 +10,7 @@ import com.qualcomm.robotcore.hardware.I2cDeviceSynchDevice;
 import com.qualcomm.robotcore.hardware.I2cDeviceSynchImplOnSimple;
 import com.qualcomm.robotcore.hardware.I2cDevice;
 
+@Disabled
 @TeleOp(name = "AS5600 Absolute Encoder Example", group = "Test")
 public class NewEncoder extends LinearOpMode {
 
@@ -34,7 +36,7 @@ public class NewEncoder extends LinearOpMode {
 
         // ----- AS5600 Setup -----
         as5600Device = hardwareMap.get(I2cDevice.class, "as5600");
-        as5600 = new I2cDeviceSynchImplOnSimple(as5600Device, I2cAddr.create7bit(AS5600_ADDR), false);
+        as5600 = new I2cDeviceSynchImplOnSimple(as5600Device, I2cAddr.create7bit(AS5600_ADDR));
         as5600.engage();
 
         telemetry.addLine("Initialized");
@@ -53,7 +55,7 @@ public class NewEncoder extends LinearOpMode {
             int high = angleBytes[0] & 0xFF;
             int low = angleBytes[1] & 0xFF;
 
-            int rawAngle = (high << 8) | low;   // 12-bit value (0-4095)
+            int rawAngle = ((high << 8) | low) & 0x0FFF;   // 12-bit value (0-4095)
             double degrees = rawAngle * 360.0 / 4096.0;
 
             // ----- Telemetry -----
@@ -62,4 +64,6 @@ public class NewEncoder extends LinearOpMode {
             telemetry.update();
         }
     }
+
+
 }
