@@ -585,7 +585,7 @@ public class RapidShootTesting extends LinearOpMode {
             //telemetry.addData("kP", aimPid.getP());
             //telemetry.addData("kF", aimPid.getF());
             //telemetry.addData("IntakePower", intakePower);
-            telemetry.addData("shot counter", shotsFired);)
+            telemetry.addData("shot counter", shotsFired);
             telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
             telemetry.addData("flywheel target RPM", targetRPM);
             telemetry.addData("flywheelmultiplier", flyWheelPowerMultiplier);
@@ -603,7 +603,7 @@ public class RapidShootTesting extends LinearOpMode {
             telemetry.addData("distance:", "%.2f", distance);
             telemetry.addData("tx", result.getTx());
             telemetry.addData("ta", result.getTa());
-            telemetry.addData("Ball Loaded?", isBallLoaded);
+            //telemetry.addData("Ball Loaded?", isBallLoaded);
             // ... inside the telemetry block at the end            telemetry.addData("Aim PID kP", aimPid.getP());
             //telemetry.addData("Aim PID kp", aimPid.getP()); //  <-- ADD THIS LINE
             //telemetry.addData("Aim PID kF", aimPid.getF()); //  <-- ADD THIS LINE
