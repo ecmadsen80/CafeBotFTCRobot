@@ -8,14 +8,14 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-@Disabled
+
 @TeleOp
 public class
 PIDF extends OpMode {
     public DcMotorEx flywheel;
 
-    public double highvelocity =  1500;
-    public double lowvel = 900;
+    public double highvelocity =  2500;
+    public double lowvel = 2000;
     public double curvel = highvelocity;
 
     double F=0;
