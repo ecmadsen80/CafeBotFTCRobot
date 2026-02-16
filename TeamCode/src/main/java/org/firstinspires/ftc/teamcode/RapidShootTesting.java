@@ -181,16 +181,9 @@ public class RapidShootTesting extends LinearOpMode {
 
 
         while (opModeIsActive()) {
-
-            //LimeLight
-            // Read the beam break sensor
-            // We'll assume 'true' means a ball is present (beam is broken)
-
-            //light.setPosition(0.30);
+            
 
             LLResult result = limelight.getLatestResult();
-            //boolean isBallLoaded = laserInput.getState();
-            //flywheel.setVelocity((1500.0/60.0)*TICKS_PER_REV);
 
             if (!result.isValid()) {
                 // If we can't see a tag, the light should always be RED.
