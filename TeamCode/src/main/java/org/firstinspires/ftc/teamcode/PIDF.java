@@ -24,6 +24,10 @@ PIDF extends OpMode {
     double[] stepSizes = {10.0, 1.0, 0.1, 0.001, 0.0001};
     int stepIndex = 1;
 
+    com.acmerobotics.dashboard.FtcDashboard dashboard = com.acmerobotics.dashboard.FtcDashboard.getInstance();
+    com.acmerobotics.dashboard.telemetry.TelemetryPacket packet = new com.acmerobotics.dashboard.telemetry.TelemetryPacket();
+    //com.qualcomm.robotcore.hardware.VoltageSensor batteryVoltageSensor = hardwareMap.voltageSensor.iterator().next();
+
     @Override
     public void init() {
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
@@ -32,6 +36,7 @@ PIDF extends OpMode {
         PIDFCoefficients pidf = new PIDFCoefficients(P,0,0,F);
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,pidf);
         telemetry.addLine("init");
+
 
     }
 
@@ -66,9 +71,10 @@ PIDF extends OpMode {
         PIDFCoefficients pidf = new PIDFCoefficients(P,0,0,F);
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,pidf);
 
-        flywheel.setVelocity(curvel);
+        flywheel.setVelocity((curvel/60)*28);
 
         double curvel2 = flywheel.getVelocity();
+        curvel2 = (curvel2/28)*60;
         double error = curvel - curvel2;
         telemetry.addData("Err", "%.2f", error);
         telemetry.addData("Target", curvel);
@@ -76,5 +82,15 @@ PIDF extends OpMode {
         telemetry.addData("P", "%.4f", P);
         telemetry.addData("F", "%.4f", F);
         telemetry.addData("Stepsize", "%.4f", stepSizes[stepIndex]);
+
+        // --- Add Flywheel Data to Dashboard Packet ---
+        packet.put("Flywheel Target Velocity", curvel);
+        packet.put("Flywheel Current Velocity", curvel2);
+        packet.put("Flywheel Error", error);
+        // ---------------------------------------------
+        //double voltage = batteryVoltageSensor.getVoltage();
+
+        //packet.put("Battery Voltage", voltage);
+        dashboard.sendTelemetryPacket(packet);
     }
 }

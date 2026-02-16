@@ -49,7 +49,8 @@ public class RapidShootTesting extends LinearOpMode {
     //PID Controller for Aiming
     private PIDFController aimPid = new PIDFController(0.015, 0.0, 0.01, 0.015);
 
-    private PIDFCoefficients pidf = new PIDFCoefficients(110,0.0,0.0,14);
+    private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(110,0.0,0.0,11);//tuned with all the weight on the wheels
+
 
     private static final double TICKS_PER_REV = 28.0;
 
@@ -119,7 +120,7 @@ public class RapidShootTesting extends LinearOpMode {
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,pidf);
+        flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
 
         //Motor Parameter Setup
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -227,7 +228,7 @@ public class RapidShootTesting extends LinearOpMode {
                 case AIMING:
                     // Use the auto-aim logic to turn the robot
                     turn = pointAtTag();
-
+                    light.setPosition(0.66);
                     // Check if we are successfully aimed at the target
                     if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 5 degrees
                         // If aimed, move to the next state and shoot
@@ -250,11 +251,13 @@ public class RapidShootTesting extends LinearOpMode {
                     break;
 
                 case SPINNING_UP:
-                    // In this state, we are aimed, but waiting for the flywheel to be stable.
+                    // In this state, we are aimed, but waiting for the flywheel to be stable. Once it's
+                    // stable program goes back to "driving" mode so that the drive can manually shoot with "B"
+                    // Servo light is blue until RPMs are stable
                     // Keep the robot aimed at the tag in case it drifts.
                     turn = pointAtTag();
                     // <-- Add one more ')' here
-
+                    light.setPosition(0.66);
                     // Get the current flywheel velocity in RPM
 
 
@@ -265,9 +268,10 @@ public class RapidShootTesting extends LinearOpMode {
                     double currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
                     // Check if the flywheel is within the desired speed range (e.g., 95% of target)
                     if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
-                        // If the speed has been stable for set time (ms) , move to the SHOOTING state.
+                        // If the speed has been stable for set time (ms) , move back to Driving state.
                         if (rpmStableTimer.milliseconds() >= 250) {
-                            currentAimState = AimState.SHOOTING;
+                            light.setPosition(0.50);
+                            currentAimState = AimState.DRIVING;
                             ballLoadedTimer.reset();
                         }
                     } else {
@@ -284,7 +288,7 @@ public class RapidShootTesting extends LinearOpMode {
 
 
                 case SHOOTING:
-
+                    /*
                     turn = pointAtTag(); // Keep aiming while shooting
 
                    // 1. Get the stable RPM right before we start pushing.
@@ -321,7 +325,10 @@ public class RapidShootTesting extends LinearOpMode {
                     currentAimState = AimState.RECOVERING_SPEED;
                     break;
 
+                     */
+
                 case RECOVERING_SPEED:
+                   /*
                     turn = pointAtTag();
 
                     currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
@@ -357,6 +364,8 @@ public class RapidShootTesting extends LinearOpMode {
                     }
                     break;
 
+                    */
+
 
             }
 
@@ -384,32 +393,32 @@ public class RapidShootTesting extends LinearOpMode {
                 }
 
                 if (gamepad1.dpadUpWasPressed()){
-                    targetRPM += 100;
+                    targetRPM += 25;
                 }
                 if (gamepad1.dpadDownWasPressed()){
-                    targetRPM -= 100;
+                    targetRPM -= 25;
                 }
 
                 //Using Gamepad2 to adjust the flywheel PIDF coefficients
 
                 if (gamepad2.dpadLeftWasPressed()){
-                    pidf.f -=1;
-                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
+                    pidfFullWeight.f -=1;
+                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
                 }
 
                 if (gamepad2.dpadRightWasPressed()){
-                    pidf.f +=1;
-                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
+                    pidfFullWeight.f +=1;
+                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
                 }
 
                 if (gamepad2.dpadUpWasPressed()){
-                    pidf.p +=5;
-                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
+                    pidfFullWeight.p +=5;
+                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
                 }
 
                 if(gamepad2.dpadDownWasPressed()){
-                    pidf.p -=5;
-                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidf);
+                    pidfFullWeight.p -=5;
+                    flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
                 }
 
                 double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
@@ -546,8 +555,9 @@ public class RapidShootTesting extends LinearOpMode {
             double currentRightTurn  = rightTurn.getCurrent(org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit.AMPS);
 
             double voltage = batteryVoltageSensor.getVoltage();
-
+            double flyWheelVelocityToShow = (flywheel.getVelocity()*TICKS_PER_REV)*60;
             packet.put("Battery Voltage", voltage);
+            packet.put("Flywheel Velocity", flyWheelVelocityToShow );
             packet.put("Current/Left Drive (A)", currentLeftDrive);
             packet.put("Current/Right Drive (A)", currentRightDrive);
             packet.put("Current/Left Turn (A)", currentLeftTurn);
@@ -589,8 +599,8 @@ public class RapidShootTesting extends LinearOpMode {
             telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
             telemetry.addData("flywheel target RPM", targetRPM);
             telemetry.addData("flywheelmultiplier", flyWheelPowerMultiplier);
-            telemetry.addData("pidf p", pidf.p);
-            telemetry.addData("pidf f", pidf.f);
+            telemetry.addData("pidf p", pidfFullWeight.p);
+            telemetry.addData("pidf f", pidfFullWeight.f);
             /*
             telemetry.addData("Left Target Angle", targetAngleLeft);
             telemetry.addData("Right Target Angle", targetAngleRight);
