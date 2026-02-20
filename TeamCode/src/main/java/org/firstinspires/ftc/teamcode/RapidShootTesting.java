@@ -4,9 +4,12 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.I2cAddr;
+import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -41,6 +44,7 @@ public class RapidShootTesting extends LinearOpMode {
     private DcMotor upPusher;
     private DcMotor intake;
     private Servo light;
+    private Servo wWiper;
     private Limelight3A limelight;
     //private Servo feederLever = null;
     private DigitalChannel laserInput;
@@ -99,6 +103,16 @@ public class RapidShootTesting extends LinearOpMode {
     private AimState currentAimState = AimState.DRIVING;
     private int shotsFired = 0;
 
+    private DcMotor motor;
+    private I2cDeviceSynch as5600Left;
+    private I2cDeviceSynch as5600Right;
+
+    private static final int AS5600_ADDR = 0x36;
+    private static final int ANGLE_REGISTER = 0x0E;
+
+    private static final double LEFT_ZERO_POSITION = 25.66;
+    private static final double RIGHT_ZERO_POSITION = 146.9;
+
 
     @Override
     public void runOpMode() {
@@ -117,10 +131,25 @@ public class RapidShootTesting extends LinearOpMode {
         //feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
         laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
         light  = hardwareMap.get(Servo.class, "light");
+        wWiper = hardwareMap.get(Servo.class, "wiper");
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
+
+
+        Rev2mDistanceSensor dummySensorL =
+                hardwareMap.get(Rev2mDistanceSensor.class, "as5600Left");
+        Rev2mDistanceSensor dummySensorR =
+                hardwareMap.get(Rev2mDistanceSensor.class, "as5600Right");
+
+        as5600Left = dummySensorL.getDeviceClient();
+        as5600Left.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
+        as5600Left.engage();
+
+        as5600Right = dummySensorR.getDeviceClient();
+        as5600Right.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
+        as5600Right.engage();
 
         //Motor Parameter Setup
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -177,11 +206,30 @@ public class RapidShootTesting extends LinearOpMode {
         leftTurn.setPower(1.0); //I'm not sure why this is here
         rightTurn.setPower(1.0); //Ditto
 
+/*
+        leftTurn.setVelocity(TURN_VELOCITY);
+        rightTurn.setVelocity(TURN_VELOCITY);
 
 
+        while (opModeIsActive() && (Math.abs(getAngleLeft()) > 2.0 || Math.abs(getAngleRight()) > 2.0)) {
+            // Keep updating telemetry while we wait
+
+
+            telemetry.addLine("Aligning wheels to zero...");
+            telemetry.addData("Left Angle", "%.2f", getAngleLeft());
+            telemetry.addData("Right Angle", "%.2f", getAngleRight());
+            telemetry.update();
+
+            // The loop does nothing but wait for the motors to reach their position.
+        }
+
+        telemetry.addLine("Wheels Aligned. Ready to Drive.");
+        telemetry.update();
+        ````````
+ */
 
         while (opModeIsActive()) {
-            
+
 
             LLResult result = limelight.getLatestResult();
 
@@ -445,12 +493,19 @@ public class RapidShootTesting extends LinearOpMode {
             if (targetAngleLeft < 0) targetAngleLeft += 360;
             if (targetAngleRight < 0) targetAngleRight += 360;
 
+            /* commenting this out in favor of the absolute encoders
             //get current encoder positions
             int leftCurrentTicks = leftTurn.getCurrentPosition();
             int rightCurrentTicks = rightTurn.getCurrentPosition();
             // Convert to degrees
             int leftCurrentDegrees = (int)((leftCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
             int rightCurrentDegrees = (int)((rightCurrentTicks / (double)TURN_TICKS_PER_REV) * 360);
+
+             */
+
+            double leftCurrentDegrees = getAngleLeft();
+            double rightCurrentDegrees = getAngleRight();
+
 
             // 5. Optimization for LEFT Pod
             double driveMultLeft = 1.0;
@@ -583,7 +638,8 @@ public class RapidShootTesting extends LinearOpMode {
             //the middle of the field, it reads (0,-2.6) when pointed at one april tag and (-2.6,0) when
             //pointed at the other.
 
-
+            double leftEncoderDegrees = getAngleLeft();
+            double rightEncoderDegrees = getAngleRight();
             // Telemetry
             //telemetry.addData("kP", aimPid.getP());
             //telemetry.addData("kF", aimPid.getF());
@@ -594,6 +650,8 @@ public class RapidShootTesting extends LinearOpMode {
             telemetry.addData("flywheelmultiplier", flyWheelPowerMultiplier);
             telemetry.addData("pidf p", pidfFullWeight.p);
             telemetry.addData("pidf f", pidfFullWeight.f);
+            telemetry.addData("left Encoder Angle", leftEncoderDegrees);
+            telemetry.addData("right Encoder Angle", rightEncoderDegrees);
             /*
             telemetry.addData("Left Target Angle", targetAngleLeft);
             telemetry.addData("Right Target Angle", targetAngleRight);
@@ -757,7 +815,24 @@ public class RapidShootTesting extends LinearOpMode {
         return distance;
     }
 
+    private double getAngleLeft() {
+        byte[] angleBytes = as5600Left.read(ANGLE_REGISTER, 2);
 
+        int high = angleBytes[0] & 0xFF;
+        int low = angleBytes[1] & 0xFF;
 
+        int rawAngle = ((high << 8) | low) & 0x0FFF;
+        return (rawAngle * 360.0 / 4096.0) - LEFT_ZERO_POSITION;
+    }
+
+    private double getAngleRight() {
+        byte[] angleBytes = as5600Right.read(ANGLE_REGISTER, 2);
+
+        int high = angleBytes[0] & 0xFF;
+        int low = angleBytes[1] & 0xFF;
+
+        int rawAngle = ((high << 8) | low) & 0x0FFF;
+        return (rawAngle * 360.0 / 4096.0) - RIGHT_ZERO_POSITION;
+    }
 
 }
