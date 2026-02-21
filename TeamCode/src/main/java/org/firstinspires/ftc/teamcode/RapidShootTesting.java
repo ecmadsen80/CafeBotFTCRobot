@@ -182,7 +182,7 @@ public class RapidShootTesting extends LinearOpMode {
 
         limelight.start();
 
-        laserInput.setMode(DigitalChannel.Mode.INPUT); // <-- ADD THIS LINE
+        laserInput.setMode(DigitalChannel.Mode.INPUT);
 
         //IMU initialization
         imu = hardwareMap.get(IMU.class, "imu");
@@ -206,7 +206,15 @@ public class RapidShootTesting extends LinearOpMode {
         leftTurn.setPower(1.0); //I'm not sure why this is here
         rightTurn.setPower(1.0); //Ditto
 
-/*
+        //the goal here is to "zero" the wheels to the absolute encoder position of 0
+        double targetMoveAngleRight = closestAngle(0, getAngleRight());
+        double targetMoveAngleLeft = closestAngle(0, getAngleLeft());
+        int leftTargetTicks = leftTurn.getCurrentPosition() + (int)((targetMoveAngleLeft / 360.0) * TURN_TICKS_PER_REV);
+        int rightTargetTicks = rightTurn.getCurrentPosition() + (int)((targetMoveAngleRight / 360.0) * TURN_TICKS_PER_REV);
+
+        leftTurn.setTargetPosition(leftTargetTicks);
+        rightTurn.setTargetPosition(rightTargetTicks);
+
         leftTurn.setVelocity(TURN_VELOCITY);
         rightTurn.setVelocity(TURN_VELOCITY);
 
@@ -225,8 +233,7 @@ public class RapidShootTesting extends LinearOpMode {
 
         telemetry.addLine("Wheels Aligned. Ready to Drive.");
         telemetry.update();
-        ````````
- */
+
 
         while (opModeIsActive()) {
 
@@ -524,14 +531,14 @@ public class RapidShootTesting extends LinearOpMode {
             }
 
             // 7. Calculate Final Motor Targets
-            double moveLeft = closestAngle(targetAngleLeft, leftCurrentDegrees) + leftCurrentDegrees;
-            double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
+            // We already calculated the shortest angle to turn ('diffLeft' and 'diffRight')
+            // Now, we convert that *difference* into ticks and add it to the motor's current position.
 
-            leftTurn.setTargetPosition((int)((moveLeft / 360.0) * TURN_TICKS_PER_REV));
-            rightTurn.setTargetPosition((int)((moveRight / 360.0) * TURN_TICKS_PER_REV));
+            leftTargetTicks = leftTurn.getCurrentPosition() + (int) ((diffLeft / 360.0) * TURN_TICKS_PER_REV);
+            rightTargetTicks = rightTurn.getCurrentPosition() + (int) ((diffRight / 360.0) * TURN_TICKS_PER_REV);
 
-            leftTurn.setVelocity(TURN_VELOCITY);
-            rightTurn.setVelocity(TURN_VELOCITY);
+            leftTurn.setTargetPosition(leftTargetTicks);
+            rightTurn.setTargetPosition(rightTargetTicks);
 
             // 8. Apply Final Drive Power
             // Normalize magnitudes if they exceed 1.0
