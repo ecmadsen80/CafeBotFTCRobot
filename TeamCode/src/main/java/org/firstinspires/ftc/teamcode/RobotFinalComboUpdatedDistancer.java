@@ -50,7 +50,7 @@ public class RobotFinalComboUpdatedDistancer extends LinearOpMode {
     //PID Controller for Aiming
     private PIDFController aimPid = new PIDFController(0.015, 0.0, 0.01, 0.015);
 
-    private PIDFCoefficients pidf = new PIDFCoefficients(110,0.0,0.0,14);
+    private PIDFCoefficients pidf = new PIDFCoefficients(110,0.0,0.0,11);
     private static final double MAX_RPM = 5000;
     private static final double MIN_RPM = 0;
 

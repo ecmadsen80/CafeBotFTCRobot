@@ -11,10 +11,13 @@ import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
 public class AS5600Test extends LinearOpMode {
 
     private DcMotor motor;
-    private I2cDeviceSynch as5600;
+    private I2cDeviceSynch as5600Right;
+    private I2cDeviceSynch as5600Left;
 
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
+    int LEFT_ZERO = 126;
+    int RIGHT_ZERO = 26;
 
     @Override
     public void runOpMode() {
@@ -23,28 +26,40 @@ public class AS5600Test extends LinearOpMode {
 
         // ----- AS5600 Setup via REV 2m Distance Sensor -----
         Rev2mDistanceSensor dummySensor =
-                hardwareMap.get(Rev2mDistanceSensor.class, "as5600");
+                hardwareMap.get(Rev2mDistanceSensor.class, "as5600Right");
+        Rev2mDistanceSensor dummySensor2 =
+                hardwareMap.get(Rev2mDistanceSensor.class, "as5600Left");
 
-        as5600 = dummySensor.getDeviceClient();
-        as5600.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
-        as5600.engage();
+
+        as5600Left = dummySensor.getDeviceClient();
+        as5600Left.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
+        as5600Left.engage();
+
+        as5600Right = dummySensor2.getDeviceClient();
+        as5600Right.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
+        as5600Right.engage();
 
         telemetry.addLine("Initialized");
         telemetry.update();
 
         waitForStart();
 
+
         while (opModeIsActive()) {
 
-            double degrees = getAngle();
-            double rawAngle = getRawAngle();
-            telemetry.addData("Raw Angle", rawAngle);
-            telemetry.addData("Degrees", degrees);
+            double degrees = getAngle(as5600Left);
+            double rawAngle = getRawAngle(as5600Left);
+            telemetry.addData("Raw Angle Left", rawAngle);
+            telemetry.addData("Degrees Left", degrees);
+            degrees = getAngle(as5600Right);
+            rawAngle = getRawAngle(as5600Right);
+            telemetry.addData("Raw Angle Right", rawAngle);
+            telemetry.addData("Degrees Right", degrees);
             telemetry.update();
         }
     }
 
-    private double getAngle() {
+    private double getAngle(I2cDeviceSynch as5600) {
         byte[] angleBytes = as5600.read(ANGLE_REGISTER, 2);
 
         int high = angleBytes[0] & 0xFF;
@@ -54,7 +69,7 @@ public class AS5600Test extends LinearOpMode {
         return rawAngle * 360.0 / 4096.0;
     }
 
-    private double getRawAngle(){
+    private double getRawAngle(I2cDeviceSynch as5600){
         byte[] angleBytes = as5600.read(ANGLE_REGISTER, 2);
 
         int high = angleBytes[0] & 0xFF;

@@ -110,7 +110,7 @@ public class RapidShootTesting extends LinearOpMode {
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
 
-    private static final double LEFT_ZERO_POSITION = 25.66;
+    private static final double LEFT_ZERO_POSITION = 25.6;
     private static final double RIGHT_ZERO_POSITION = 146.9;
 
 
@@ -170,6 +170,8 @@ public class RapidShootTesting extends LinearOpMode {
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
+
+
         //feederLever.setPosition(0); //down
 
         //dashboard initialization
@@ -200,39 +202,44 @@ public class RapidShootTesting extends LinearOpMode {
 
         waitForStart();
 
-
-
         runtime.reset();
-        leftTurn.setPower(1.0); //I'm not sure why this is here
-        rightTurn.setPower(1.0); //Ditto
+        leftTurn.setPower(0.5);
+        rightTurn.setPower(0.5);
 
-        //the goal here is to "zero" the wheels to the absolute encoder position of 0
-        double targetMoveAngleRight = closestAngle(0, getAngleRight());
-        double targetMoveAngleLeft = closestAngle(0, getAngleLeft());
-        int leftTargetTicks = leftTurn.getCurrentPosition() + (int)((targetMoveAngleLeft / 360.0) * TURN_TICKS_PER_REV);
-        int rightTargetTicks = rightTurn.getCurrentPosition() + (int)((targetMoveAngleRight / 360.0) * TURN_TICKS_PER_REV);
+        double currentAngle = getAngle(as5600Left);
+        double zeroAngle = LEFT_ZERO_POSITION;
 
-        leftTurn.setTargetPosition(leftTargetTicks);
-        rightTurn.setTargetPosition(rightTargetTicks);
+// Shortest signed angle error in degrees [-180, 180)
+        double angleError =
+                ((zeroAngle - currentAngle + 540) % 360) - 180;
+
+// Convert degrees → motor ticks
+        int deltaTicks = (int) Math.round(
+                angleError / 360.0 * TICKS_PER_REV
+        );
+
+// Move RELATIVE to current motor position
+        leftTurn.setTargetPosition(
+                leftTurn.getCurrentPosition() + deltaTicks
+        );
 
         leftTurn.setVelocity(TURN_VELOCITY);
+        currentAngle = getAngle(as5600Right);
+        zeroAngle = RIGHT_ZERO_POSITION;
+
+        angleError =
+                ((zeroAngle - currentAngle + 540) % 360) - 180;
+
+        deltaTicks = (int) Math.round(
+                angleError / 360.0 * TICKS_PER_REV
+        );
+
+        rightTurn.setTargetPosition(
+                rightTurn.getCurrentPosition() + deltaTicks
+        );
+
         rightTurn.setVelocity(TURN_VELOCITY);
 
-
-        while (opModeIsActive() && (Math.abs(getAngleLeft()) > 2.0 || Math.abs(getAngleRight()) > 2.0)) {
-            // Keep updating telemetry while we wait
-
-
-            telemetry.addLine("Aligning wheels to zero...");
-            telemetry.addData("Left Angle", "%.2f", getAngleLeft());
-            telemetry.addData("Right Angle", "%.2f", getAngleRight());
-            telemetry.update();
-
-            // The loop does nothing but wait for the motors to reach their position.
-        }
-
-        telemetry.addLine("Wheels Aligned. Ready to Drive.");
-        telemetry.update();
 
 
         while (opModeIsActive()) {
@@ -247,7 +254,7 @@ public class RapidShootTesting extends LinearOpMode {
 
             } else {
                 // Valid target = GREEN (Ready to shoot)
-                    light.setPosition(0.50);
+                light.setPosition(0.50);
 
                 // This distance calculation should only happen when the result is valid.
                 distance = distanceFromTag();
@@ -510,8 +517,8 @@ public class RapidShootTesting extends LinearOpMode {
 
              */
 
-            double leftCurrentDegrees = getAngleLeft();
-            double rightCurrentDegrees = getAngleRight();
+            double leftCurrentDegrees = getAngle(as5600Left);
+            double rightCurrentDegrees = getAngle(as5600Right);
 
 
             // 5. Optimization for LEFT Pod
@@ -534,11 +541,11 @@ public class RapidShootTesting extends LinearOpMode {
             // We already calculated the shortest angle to turn ('diffLeft' and 'diffRight')
             // Now, we convert that *difference* into ticks and add it to the motor's current position.
 
-            leftTargetTicks = leftTurn.getCurrentPosition() + (int) ((diffLeft / 360.0) * TURN_TICKS_PER_REV);
-            rightTargetTicks = rightTurn.getCurrentPosition() + (int) ((diffRight / 360.0) * TURN_TICKS_PER_REV);
+            int leftTargetTicks = leftTurn.getCurrentPosition() + (int) ((diffLeft / 360.0) * TURN_TICKS_PER_REV);
+            int rightTargetTicks = rightTurn.getCurrentPosition() + (int) ((diffRight / 360.0) * TURN_TICKS_PER_REV);
 
-            leftTurn.setTargetPosition(leftTargetTicks);
-            rightTurn.setTargetPosition(rightTargetTicks);
+            //leftTurn.setTargetPosition(leftTargetTicks);
+            //rightTurn.setTargetPosition(rightTargetTicks);
 
             // 8. Apply Final Drive Power
             // Normalize magnitudes if they exceed 1.0
@@ -645,8 +652,8 @@ public class RapidShootTesting extends LinearOpMode {
             //the middle of the field, it reads (0,-2.6) when pointed at one april tag and (-2.6,0) when
             //pointed at the other.
 
-            double leftEncoderDegrees = getAngleLeft();
-            double rightEncoderDegrees = getAngleRight();
+            double leftEncoderDegrees = getAngle(as5600Left);
+            double rightEncoderDegrees = getAngle(as5600Right);
             // Telemetry
             //telemetry.addData("kP", aimPid.getP());
             //telemetry.addData("kF", aimPid.getF());
@@ -840,6 +847,66 @@ public class RapidShootTesting extends LinearOpMode {
 
         int rawAngle = ((high << 8) | low) & 0x0FFF;
         return (rawAngle * 360.0 / 4096.0) - RIGHT_ZERO_POSITION;
+    }
+
+    private void zeroSwerveModule(DcMotorEx turnMotor,
+                                  double absoluteAngleDegrees,
+                                  double ticksPerRev,
+                                  double toleranceDegrees) {
+
+        turnMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        while (opModeIsActive()) {
+
+            double error = closestAngle(0, absoluteAngleDegrees);
+
+            if (Math.abs(error) < toleranceDegrees) {
+                break;
+            }
+
+            int currentTicks = turnMotor.getCurrentPosition();
+            int correctionTicks = (int)((error / 360.0) * ticksPerRev);
+
+            turnMotor.setTargetPosition(currentTicks + correctionTicks);
+            turnMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            turnMotor.setVelocity(1500);
+
+            // Update absolute angle each loop
+            if (turnMotor == leftTurn) {
+                absoluteAngleDegrees = getAngleLeft();
+            } else {
+                absoluteAngleDegrees = getAngleRight();
+            }
+
+            telemetry.addData("Zeroing Error", error);
+            telemetry.update();
+        }
+
+        // Stop motor
+        turnMotor.setVelocity(0);
+
+        // 🔥 CRITICAL STEP:
+        // Now that wheel is straight, reset motor encoder to 0
+        turnMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turnMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+
+    private double getAngle(I2cDeviceSynch as5600) {
+        byte[] angleBytes = as5600.read(ANGLE_REGISTER, 2);
+
+        int high = angleBytes[0] & 0xFF;
+        int low = angleBytes[1] & 0xFF;
+
+        int rawAngle = ((high << 8) | low) & 0x0FFF;
+        return rawAngle * 360.0 / 4096.0;
+    }
+
+    public double shortestAngle(double target, double current) {
+        double delta = target - current;
+        delta %= 360.0;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+        return delta;
     }
 
 }
