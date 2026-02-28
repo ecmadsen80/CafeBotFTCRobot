@@ -205,6 +205,7 @@ public class RapidShootTesting extends LinearOpMode {
         runtime.reset();
         leftTurn.setPower(1.0);
         rightTurn.setPower(1.0);
+        wWiper.setPosition(1.0);
 
         double currentAngle = getAngle(as5600Left);
         double zeroAngle = LEFT_ZERO_POSITION;
@@ -280,7 +281,10 @@ public class RapidShootTesting extends LinearOpMode {
             double ly = -gamepad1.left_stick_y;
             double turn = 0;
 
-
+            if (gamepad1.startWasPressed()) {
+                telemetry.addLine("hi");
+                wWiper.setPosition((wWiper.getPosition() + 1) % 2);
+            }
 
 
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
