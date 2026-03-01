@@ -53,7 +53,7 @@ public class RapidShootTesting extends LinearOpMode {
     //PID Controller for Aiming
     private PIDFController aimPid = new PIDFController(0.015, 0.0, 0.01, 0.015);
 
-    private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(110,0.0,0.0,11);//tuned with all the weight on the wheels
+    private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(125,0.0,0.0,11);//tuned with all the weight on the wheels
 
 
     private static final double TICKS_PER_REV = 28.0;
@@ -65,7 +65,7 @@ public class RapidShootTesting extends LinearOpMode {
 
     private static double PUSHER_POWER = 1.0;
 
-    private double flyWheelPowerMultiplier = 1.3;
+    private double flyWheelPowerMultiplier = 1.0;
 
 
     static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
@@ -469,6 +469,49 @@ public class RapidShootTesting extends LinearOpMode {
                 }
                 if (gamepad1.dpadDownWasPressed()){
                     targetRPM -= 25;
+                }
+
+                if (gamepad1.dpadLeftWasPressed()) {
+                     currentAngle = getAngle(as5600Left);
+                     zeroAngle = LEFT_ZERO_POSITION;
+
+// Shortest signed angle error in degrees [-180, 180)
+                     angleError =
+                            ((zeroAngle - currentAngle + 540) % 360) - 180;
+
+// Convert degrees → motor ticks
+                     deltaTicks = (int) Math.round(
+                            angleError / 360.0 * TURN_TICKS_PER_REV
+                    );
+
+// Move RELATIVE to current motor position
+                    leftTurn.setTargetPosition(
+                            leftTurn.getCurrentPosition() - deltaTicks
+                    );
+
+
+                    leftTurn.setVelocity(TURN_VELOCITY);
+                    currentAngle = getAngle(as5600Right);
+                    zeroAngle = RIGHT_ZERO_POSITION;
+
+                    angleError =
+                            ((zeroAngle - currentAngle + 540) % 360) - 180;
+
+                    deltaTicks = (int) Math.round(
+                            angleError / 360.0 * TURN_TICKS_PER_REV
+                    );
+
+                    rightTurn.setTargetPosition(
+                            rightTurn.getCurrentPosition() - deltaTicks
+                    );
+
+
+                    rightTurn.setVelocity(TURN_VELOCITY);
+
+                    while (leftTurn.isBusy() || rightTurn.isBusy()) {
+                        telemetry.addLine("Aligning wheels...");
+                        telemetry.update();
+                    }
                 }
 
                 //Using Gamepad2 to adjust the flywheel PIDF coefficients

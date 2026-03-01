@@ -29,11 +29,14 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.I2cAddr;
+import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import java.util.ArrayList;
@@ -101,10 +104,23 @@ public class FinalAuto extends LinearOpMode {
     private Servo feederLever = null;
     private DcMotor pusher = null;
     private DcMotor pusher1 = null;
+    private DcMotor inPusher;
+    private DcMotor upPusher;
     public boolean isAiming = false;
+
+    static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
     private Servo light;
     private  PIDFCoefficients pidf = new PIDFCoefficients(110,0,0,14);
     // ArrayList<Float> myList = new ArrayList<>();
+
+    private I2cDeviceSynch as5600Left;
+    private I2cDeviceSynch as5600Right;
+
+    private static final int AS5600_ADDR = 0x36;
+    private static final int ANGLE_REGISTER = 0x0E;
+
+    private static final double LEFT_ZERO_POSITION = 25.6;
+    private static final double RIGHT_ZERO_POSITION = 146.9;
 
 
     @Override
@@ -120,12 +136,13 @@ public class FinalAuto extends LinearOpMode {
         rightDrive = hardwareMap.get(DcMotor.class, "right_drive");
         intake = hardwareMap.get(DcMotor.class, "intake");
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        feederLever = hardwareMap.get(Servo.class, "feederLever");
         limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
         pusher = hardwareMap.get(DcMotor.class, "rightpusher");
         pusher1 = hardwareMap.get(DcMotor.class, "leftpusher");
         light = hardwareMap.get(Servo.class, "light");
 
+        inPusher = hardwareMap.get(DcMotor.class, "leftpusher");
+        upPusher = hardwareMap.get(DcMotor.class, "rightpusher");
 
         //intake.setDirection(DcMotor.Direction.FORWARD);light  = hardwareMap.get(Servo.class, "blink");
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -148,7 +165,19 @@ public class FinalAuto extends LinearOpMode {
         leftTurn.setPower(1.0);
         rightTurn.setPower(1.0);
 
-        feederLever.setPosition(0.0);
+        Rev2mDistanceSensor dummySensorL =
+                hardwareMap.get(Rev2mDistanceSensor.class, "as5600Left");
+        Rev2mDistanceSensor dummySensorR =
+                hardwareMap.get(Rev2mDistanceSensor.class, "as5600Right");
+
+        as5600Left = dummySensorL.getDeviceClient();
+        as5600Left.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
+        as5600Left.engage();
+
+        as5600Right = dummySensorR.getDeviceClient();
+        as5600Right.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
+        as5600Right.engage();
+
 
 
         limelight.start();
@@ -161,7 +190,7 @@ public class FinalAuto extends LinearOpMode {
         leftDrive.setDirection(DcMotor.Direction.REVERSE);
         rightDrive.setDirection(DcMotor.Direction.FORWARD);
         //feederLever.setPosition(1.0);
-        feederLever.setPosition(0.0);
+
         telemetry.addData("Status", "Initialized");
         telemetry.update();
         // Wait for the game to start (driver presses START)
@@ -174,22 +203,64 @@ public class FinalAuto extends LinearOpMode {
         boolean stop = false;
 
 
+        double currentAngle = getAngle(as5600Left);
+        double zeroAngle = LEFT_ZERO_POSITION;
+
+// Shortest signed angle error in degrees [-180, 180)
+        double angleError =
+                ((zeroAngle - currentAngle + 540) % 360) - 180;
+
+// Convert degrees → motor ticks
+        int deltaTicks = (int) Math.round(
+                angleError / 360.0 * TURN_TICKS_PER_REV
+        );
+
+// Move RELATIVE to current motor position
+        leftTurn.setTargetPosition(
+                leftTurn.getCurrentPosition() - deltaTicks
+        );
+
+
+        leftTurn.setVelocity(2500);
+        currentAngle = getAngle(as5600Right);
+        zeroAngle = RIGHT_ZERO_POSITION;
+
+        angleError =
+                ((zeroAngle - currentAngle + 540) % 360) - 180;
+
+        deltaTicks = (int) Math.round(
+                angleError / 360.0 * TURN_TICKS_PER_REV
+        );
+
+        rightTurn.setTargetPosition(
+                rightTurn.getCurrentPosition() - deltaTicks
+        );
+
+
+        rightTurn.setVelocity(2500);
+
+        while (leftTurn.isBusy() || rightTurn.isBusy()) {
+            telemetry.addLine("Aligning wheels...");
+            telemetry.update();
+        }
+
+        leftTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftTurn.setTargetPosition(0);
+        rightTurn.setTargetPosition(0);
+        leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
             if (runtime.seconds() > 12 && !stop) {
                 leftDrive.setPower(0.0);
                 rightDrive.setPower(0.0);
-                SHOOTHEBALLS();
-                sleep(1000);
-                SHOOTHEBALLS();
-                sleep(1000);
-                SHOOTHEBALLS();
-                SHOOTHEBALLS();
-                intake.setPower(0.0);
-                pusher.setPower(0.0);
-                pusher1.setPower(0.0);
-                feederLever.setPosition(0);
-                stop = true;
+                intake.setPower(-1.0);
+                inPusher.setPower(-1.0);
+                upPusher.setPower(-1.0);
+
+
             }
             flywheel.setPower(1.0);
             flywheel.setVelocity(2500/60*28);
@@ -228,15 +299,21 @@ public class FinalAuto extends LinearOpMode {
                 while (!aimAtTag()) {
 
                 }
-                SHOOTHEBALLS();
-                SHOOTHEBALLS();
-                SHOOTHEBALLS();
-                SHOOTHEBALLS();
+                leftDrive.setPower(0.0);
+                rightDrive.setPower(0.0);
+                intake.setPower(-1.0);
+                inPusher.setPower(-1.0);
+                upPusher.setPower(-1.0);
+
+
+
+
+            }
+
+            if (stop) {
                 intake.setPower(0.0);
-                pusher.setPower(0.0);
-                pusher1.setPower(0.0);
-                feederLever.setPosition(0);
-                stop = true;
+                inPusher.setPower(0.0);
+                upPusher.setPower(0.0);
             }
 
             telemetry.update();
@@ -302,6 +379,16 @@ public class FinalAuto extends LinearOpMode {
         leftDrive.setPower(0);
         rightDrive.setPower(0);
         return false;
+    }
+
+    private double getAngle(I2cDeviceSynch as5600) {
+        byte[] angleBytes = as5600.read(ANGLE_REGISTER, 2);
+
+        int high = angleBytes[0] & 0xFF;
+        int low = angleBytes[1] & 0xFF;
+
+        int rawAngle = ((high << 8) | low) & 0x0FFF;
+        return rawAngle * 360.0 / 4096.0;
     }
 
 
