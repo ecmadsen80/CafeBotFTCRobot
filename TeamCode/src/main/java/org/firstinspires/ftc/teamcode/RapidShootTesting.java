@@ -28,7 +28,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 
-@TeleOp(name="Test rapid shoot TeleOp", group="Linear OpMode")
+@TeleOp(name="State TeleOp", group="Linear OpMode")
 
 public class RapidShootTesting extends LinearOpMode {
 
@@ -207,40 +207,25 @@ public class RapidShootTesting extends LinearOpMode {
         rightTurn.setPower(1.0);
         wWiper.setPosition(1.0);
 
+
+
+        //Wheel alignment code
         double currentAngle = getAngle(as5600Left);
         double zeroAngle = LEFT_ZERO_POSITION;
+        double angleError = ((zeroAngle - currentAngle + 540) % 360) - 180;
+        int deltaTicks = (int) Math.round(angleError / 360.0 * TURN_TICKS_PER_REV);
 
-// Shortest signed angle error in degrees [-180, 180)
-        double angleError =
-                ((zeroAngle - currentAngle + 540) % 360) - 180;
-
-// Convert degrees → motor ticks
-        int deltaTicks = (int) Math.round(
-                angleError / 360.0 * TURN_TICKS_PER_REV
-        );
-
-// Move RELATIVE to current motor position
-        leftTurn.setTargetPosition(
-                leftTurn.getCurrentPosition() - deltaTicks
-        );
-
+        leftTurn.setTargetPosition(leftTurn.getCurrentPosition() - deltaTicks);
 
         leftTurn.setVelocity(TURN_VELOCITY);
         currentAngle = getAngle(as5600Right);
         zeroAngle = RIGHT_ZERO_POSITION;
+        angleError = ((zeroAngle - currentAngle + 540) % 360) - 180;
 
-        angleError =
-                ((zeroAngle - currentAngle + 540) % 360) - 180;
-
-        deltaTicks = (int) Math.round(
-                angleError / 360.0 * TURN_TICKS_PER_REV
-        );
-
+        deltaTicks = (int) Math.round(angleError / 360.0 * TURN_TICKS_PER_REV);
         rightTurn.setTargetPosition(
                 rightTurn.getCurrentPosition() - deltaTicks
         );
-
-
         rightTurn.setVelocity(TURN_VELOCITY);
 
         while (leftTurn.isBusy() || rightTurn.isBusy()) {
@@ -254,6 +239,10 @@ public class RapidShootTesting extends LinearOpMode {
         rightTurn.setTargetPosition(0);
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+
+
+
 
 
         while (opModeIsActive()) {
@@ -302,7 +291,7 @@ public class RapidShootTesting extends LinearOpMode {
                     turn = pointAtTag();
                     light.setPosition(0.66);
                     // Check if we are successfully aimed at the target
-                    if (result.isValid() && Math.abs(result.getTx()) < 5.0) { // Aim is within 5 degrees
+                    if (result.isValid() && Math.abs(result.getTx()) < 3.0) { // Aim is within 5 degrees
                         // If aimed, move to the next state and shoot
                         distance = distanceFromTag();
                         targetRPM = 2394.199*Math.pow(distance,0.3470215);

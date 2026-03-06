@@ -88,7 +88,7 @@ import com.qualcomm.robotcore.util.Range;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="Qualifier Auto", group="Linear OpMode")
+@Autonomous(name="State Auto", group="Linear OpMode")
 
 public class FinalAuto extends LinearOpMode {
 
