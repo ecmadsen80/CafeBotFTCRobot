@@ -63,12 +63,12 @@ public class RapidShootTesting extends LinearOpMode {
     private static final int RED_APRIL_TAG = 24;
     private static final int BLUE_APRIL_TAG = 20;
 
-    private static double PUSHER_POWER = 1.0;
+    private static double PUSHER_POWER = .8;
 
     private double flyWheelPowerMultiplier = 1.0;
 
 
-    static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
+        static final double TURN_TICKS_PER_REV = 751.8; //gobuilda 5204-8002-0027
 
 
 
@@ -444,11 +444,11 @@ public class RapidShootTesting extends LinearOpMode {
                 }
 
                 if (gamepad1.y){
-                    intake.setPower(-1);
+                    intake.setPower(-.8);
                 }
 
                 if (gamepad1.left_bumper){
-                    intake.setPower(1);
+                    intake.setPower(.8);
                     inPusher.setPower(PUSHER_POWER);
                     upPusher.setPower(PUSHER_POWER);
                 }
@@ -461,15 +461,15 @@ public class RapidShootTesting extends LinearOpMode {
                 }
 
                 if (gamepad1.dpadLeftWasPressed()) {
-                     currentAngle = getAngle(as5600Left);
-                     zeroAngle = LEFT_ZERO_POSITION;
+                    currentAngle = getAngle(as5600Left);
+                    zeroAngle = LEFT_ZERO_POSITION;
 
 // Shortest signed angle error in degrees [-180, 180)
-                     angleError =
+                    angleError =
                             ((zeroAngle - currentAngle + 540) % 360) - 180;
 
 // Convert degrees → motor ticks
-                     deltaTicks = (int) Math.round(
+                    deltaTicks = (int) Math.round(
                             angleError / 360.0 * TURN_TICKS_PER_REV
                     );
 
@@ -616,24 +616,24 @@ public class RapidShootTesting extends LinearOpMode {
             //b-button runs intake and both pushers, hopefully shooting
             double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
             if (intakePower > 0.1) {
-                intake.setPower(-1.0);
+                intake.setPower(-.8);
                 inPusher.setPower(-PUSHER_POWER);
             }
             else if (intakePower < -0.1) {
-                intake.setPower(1.0);
+                intake.setPower(.8);
                 inPusher.setPower(PUSHER_POWER);
             }
 
             else if (gamepad1.b){
-                intake.setPower(-1);
+                intake.setPower(-.8);
                 inPusher.setPower(-PUSHER_POWER);
                 upPusher.setPower(-PUSHER_POWER);
             }
             else {
                 //Rest Powers to 0 when buttons not pushed
                 intake.setPower(0.0);
-                inPusher.setPower(0);
-                upPusher.setPower(0);
+                inPusher.setPower(0.0);
+                upPusher.setPower(0.0);
             }
 
 
