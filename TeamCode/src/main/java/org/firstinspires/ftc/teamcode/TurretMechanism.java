@@ -12,7 +12,7 @@ import org.openftc.apriltag.AprilTagDetection;
 public class TurretMechanism {
     private DcMotorEx turret;
 
-    private double kP = -0.02690;
+    private double kP = 0.02690;
     private double kD = 0.12001;
     private double goalX = 0;
     private double lastError = 0;
