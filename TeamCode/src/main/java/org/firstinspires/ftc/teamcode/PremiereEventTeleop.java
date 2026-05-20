@@ -26,7 +26,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 import java.util.List;
 
-
+//did somethig
 @TeleOp(name="Premiere Teleop", group="Linear OpMode")
 
 public class PremiereEventTeleop extends LinearOpMode {
