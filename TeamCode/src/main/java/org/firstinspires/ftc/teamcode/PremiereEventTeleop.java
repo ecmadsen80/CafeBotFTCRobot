@@ -39,6 +39,10 @@ public class PremiereEventTeleop extends LinearOpMode {
     private DcMotorEx leftTurn = null;
     private DcMotorEx rightDrive = null;
     private DcMotorEx rightTurn = null;
+    private DcMotor primaryIntake = null;
+    private DcMotor secondaryIntake = null;
+    private Servo gate = null;
+    private boolean gateOpen = false;
     DcMotorEx flywheel = null;
     private DcMotor inPusher;
     private DcMotor upPusher;
@@ -122,15 +126,16 @@ public class PremiereEventTeleop extends LinearOpMode {
         leftTurn   = hardwareMap.get(DcMotorEx.class, "left_turn");
         rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
         rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
+        primaryIntake = hardwareMap.get(DcMotor.class, "primaryIntake");
+        secondaryIntake = hardwareMap.get(DcMotor.class, "secondaryIntake");
+        gate = hardwareMap.get(Servo.class, "gate");
         intake     = hardwareMap.get(DcMotor.class, "intake");
-        inPusher = hardwareMap.get(DcMotor.class, "leftpusher");
-        upPusher = hardwareMap.get(DcMotor.class, "rightpusher");
         limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
         light = hardwareMap.get(Servo.class, "light");
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
         //feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
         laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
-        light  = hardwareMap.get(Servo.class, "light");
+
         wWiper = hardwareMap.get(Servo.class, "wiper");
         flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -255,12 +260,12 @@ public class PremiereEventTeleop extends LinearOpMode {
             turret.update(result);
             if (!result.isValid()) {
                 // If we can't see a tag, the light should always be RED.
-                light.setPosition(0.30);
+
                 telemetry.addData("Limelight", "No data available");
 
             } else {
                 // Valid target = GREEN (Ready to shoot)
-                light.setPosition(0.50);
+                telemetry.addData('Limelight', 'See tag!');
 
                 // This distance calculation should only happen when the result is valid.
                 distance = distanceFromTag();
@@ -282,7 +287,28 @@ public class PremiereEventTeleop extends LinearOpMode {
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
 
 
+            double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
+            if (intakePower > 0.1) {
+                primaryIntake.setPower(0.8);
+                secondaryIntake.setPower(-1);
+            }
+            else if (intakePower < -0.1) {
+                primaryIntake.setPower(-0.8);
+                secondaryIntake.setPower(1);
+            }
+            else {
+                //Rest Powers to 0 when buttons not pushed
+                primaryIntake.setPower(0.0);
+                secondaryIntake.setPower(0.0);
 
+            }
+
+
+            if(gamepad1.xWasPressed()) {
+                gateOpen = !gateOpen;
+                gate.setPosition(gateOpen ? 1.0 : 0.0);
+                light.setPosition(gateOpen ? 0.283 : 0.5);
+            }
 
 
             //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
@@ -299,11 +325,7 @@ public class PremiereEventTeleop extends LinearOpMode {
                     intake.setPower(-.8);
                 }
 
-                if (gamepad1.left_bumper){
-                    intake.setPower(.8);
-                    inPusher.setPower(PUSHER_POWER);
-                    upPusher.setPower(PUSHER_POWER);
-                }
+
 
                 if (gamepad1.dpadUpWasPressed()){
                     targetRPM += 25;
@@ -466,27 +488,7 @@ public class PremiereEventTeleop extends LinearOpMode {
             //Right trigger intakes (but doesn't activate upPusher)
             //Left trigger outtakes (but doesn't activate upPusher)
             //b-button runs intake and both pushers, hopefully shooting
-            double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
-            if (intakePower > 0.1) {
-                intake.setPower(-.8);
-                inPusher.setPower(-PUSHER_POWER);
-            }
-            else if (intakePower < -0.1) {
-                intake.setPower(.8);
-                inPusher.setPower(PUSHER_POWER);
-            }
 
-            else if (gamepad1.b){
-                intake.setPower(-.8);
-                inPusher.setPower(-PUSHER_POWER);
-                upPusher.setPower(-PUSHER_POWER);
-            }
-            else {
-                //Rest Powers to 0 when buttons not pushed
-                intake.setPower(0.0);
-                inPusher.setPower(0.0);
-                upPusher.setPower(0.0);
-            }
 
 
             //singlebutton shoot only
