@@ -1,93 +1,107 @@
 package org.firstinspires.ftc.teamcode;
-import com.qualcomm.robotcore.hardware.HardwareMap;
+
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.util.Range;
-import com.qualcomm.robotcore.util.ElapsedTime;
-
-import org.openftc.apriltag.AprilTagDetection;
-
+import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class TurretMechanism {
+
     private DcMotorEx turret;
 
-    private double kP = 0.02690;
-    private double kD = 0.12001;
+    // Limelight settings
     private double goalX = 0;
-    private double lastError = 0;
     private double angleTolerance = 3.5;
-    private final double maxPower = 0.8;
-    private double power = 0;
 
-    private final ElapsedTime timer = new ElapsedTime();
+    // Motor settings
+    private final double MAX_POWER = 0.8;
 
-    // 🔥 NEW: mode control
+    // 26.9:1 Yellow Jacket (751.8 ticks/rev)
+    // External ratio: 21T -> 70T
+    private final double TICKS_PER_DEGREE = 6.96;
+
+    // Optional turret limits
+    private final int MIN_POSITION = -3000;
+    private final int MAX_POSITION = 3000;
+
     private boolean isResetting = false;
 
     public void init(HardwareMap hwMap) {
+
         turret = hwMap.get(DcMotorEx.class, "turret");
 
         turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        turret.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        turret.setTargetPosition(0);
+
+        turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        turret.setZeroPowerBehavior(
+                DcMotor.ZeroPowerBehavior.BRAKE
+        );
+
+        turret.setPower(MAX_POWER);
     }
 
     public void resetTurret() {
+
         isResetting = true;
 
         turret.setTargetPosition(0);
-        turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        turret.setPower(0.6); // speed of reset
-    }
-
-    public void setKP(double newKP) { kP = newKP; }
-    public double getKP() { return kP; }
-
-    public void setKD(double newKD) { kD = newKD; }
-    public double getKD() { return kD; }
-
-    public void resetTimer() {
-        timer.reset();
+        turret.setPower(0.6);
     }
 
     public void update(LLResult result) {
-        // 🟣 RESET MODE
+
+        // Reset mode
         if (isResetting) {
+
             if (!turret.isBusy()) {
-                // done resetting → go back to tracking mode
-                turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
                 isResetting = false;
-                lastError = 0;
             }
-            return; // 🚫 skip Limelight tracking
-        }
 
-        // 🔵 NORMAL TRACKING MODE
-        double deltaTime = timer.seconds();
-        timer.reset();
-
-        if (result == null || !result.isValid()) {
-            turret.setPower(0);
-            lastError = 0.0;
             return;
         }
 
+        // No target found
+        if (result == null || !result.isValid()) {
+            return;
+        }
+
+        // Horizontal offset from target
         double error = goalX - result.getTx();
-        double pTerm = error * kP;
 
-        double dTerm = 0;
-        if (deltaTime > 0) {
-            dTerm = (error - lastError) / deltaTime * kD;
-        }
-
+        // Within tolerance → don't move
         if (Math.abs(error) < angleTolerance) {
-            power = 0;
-        } else {
-            power = Range.clip(pTerm + dTerm, -maxPower, maxPower);
+            return;
         }
 
-        turret.setPower(power);
-        lastError = error;
+        // Convert degrees into encoder ticks
+        int tickAdjustment =
+                (int)(error * TICKS_PER_DEGREE);
+
+        // Move relative to current position
+        int newTarget =
+                turret.getCurrentPosition()
+                + tickAdjustment;
+
+        // Clamp to turret limits
+        newTarget = Math.max(
+                MIN_POSITION,
+                Math.min(MAX_POSITION, newTarget)
+        );
+
+        turret.setTargetPosition(newTarget);
+
+        // Keep RUN_TO_POSITION active
+        turret.setPower(MAX_POWER);
+    }
+
+    public int getPosition() {
+        return turret.getCurrentPosition();
+    }
+
+    public int getTarget() {
+        return turret.getTargetPosition();
     }
 }
