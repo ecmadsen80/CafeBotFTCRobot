@@ -29,6 +29,7 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.hardware.limelightvision.LLResult;
@@ -40,12 +41,16 @@ import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import java.util.ArrayList;
+import java.util.List;
+
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
+
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 /*flywheel.setPower(0.75);
             if (pointer < myList.size()) {
 
@@ -101,7 +106,9 @@ public class FinalAuto extends LinearOpMode {
     private DcMotorEx leftTurn;
     private DcMotorEx flywheel = null;
     private DcMotor intake = null;
-    private Servo feederLever = null;
+    private DcMotor primaryIntake = null;
+    private DcMotor secondaryIntake = null;
+
     private DcMotor pusher = null;
     private DcMotor pusher1 = null;
     private DcMotor inPusher;
@@ -119,8 +126,10 @@ public class FinalAuto extends LinearOpMode {
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
 
-    private static final double LEFT_ZERO_POSITION = 25.6;
-    private static final double RIGHT_ZERO_POSITION = 146.9;
+    private static final double LEFT_ZERO_POSITION = 172.3;
+    private static final double RIGHT_ZERO_POSITION = 151.6;
+
+    private TurretMechanism turret = new TurretMechanism();
 
 
     @Override
@@ -130,24 +139,27 @@ public class FinalAuto extends LinearOpMode {
         // Initialize the hardware variables. Note that the strings used here as parameters
         // to 'get' must correspond to the names assigned during the robot configuration
         // step (using the FTC Robot Controller app on the phone).
+        turret.init(hardwareMap);
+        turret.setKP(0.005);
+        turret.setKD(0.005);
+
         leftTurn  = hardwareMap.get(DcMotorEx.class, "left_turn");
         rightTurn = hardwareMap.get(DcMotorEx.class, "right_turn");
         leftDrive  = hardwareMap.get(DcMotor.class, "left_drive");
         rightDrive = hardwareMap.get(DcMotor.class, "right_drive");
-        intake = hardwareMap.get(DcMotor.class, "intake");
+        primaryIntake = hardwareMap.get(DcMotor.class, "primaryIntake");
+        secondaryIntake = hardwareMap.get(DcMotor.class, "secondaryIntake");
+        primaryIntake.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+
         limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
-        pusher = hardwareMap.get(DcMotor.class, "rightpusher");
-        pusher1 = hardwareMap.get(DcMotor.class, "leftpusher");
         light = hardwareMap.get(Servo.class, "light");
 
-        inPusher = hardwareMap.get(DcMotor.class, "leftpusher");
-        upPusher = hardwareMap.get(DcMotor.class, "rightpusher");
 
         //intake.setDirection(DcMotor.Direction.FORWARD);light  = hardwareMap.get(Servo.class, "blink");
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER,pidf);
 
         leftTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -180,8 +192,9 @@ public class FinalAuto extends LinearOpMode {
 
 
 
-        limelight.start();
+
         limelight.pipelineSwitch(0);
+        limelight.start();
         int pointer = 0;
         boolean pointerIncreased = true;
         // To drive forward, most robots need the motor on one side to be reversed, because the axles point in opposite directions.
@@ -239,7 +252,7 @@ public class FinalAuto extends LinearOpMode {
 
         rightTurn.setVelocity(2500);
 
-        while (leftTurn.isBusy() || rightTurn.isBusy()) {
+        while ((leftTurn.isBusy() || rightTurn.isBusy() ) && runtime.seconds() < 6) {
             telemetry.addLine("Aligning wheels...");
             telemetry.update();
         }
@@ -253,21 +266,24 @@ public class FinalAuto extends LinearOpMode {
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            if (runtime.seconds() > 12 && !stop) {
+
+            if (runtime.seconds() > 8 && !stop) {
                 leftDrive.setPower(0.0);
                 rightDrive.setPower(0.0);
-                intake.setPower(-1.0);
-                inPusher.setPower(-1.0);
-                upPusher.setPower(-1.0);
+                primaryIntake.setPower(-1.0);
+                secondaryIntake.setPower(-1.0);
+
 
 
             }
             flywheel.setPower(1.0);
-            flywheel.setVelocity(2500/60*28);
+            distance = distanceFromTag();
+            double targetRPM  = 625.181*distance + 1920.281;
+            flywheel.setVelocity((targetRPM/60) * 28.0);
             LLResult result = limelight.getLatestResult();
             //leftDrive.setPower(0.3);
             //rightDrive.setPower(-0.3);
-
+            turret.update(result);
             //Positions Robot at 134cm
             if (!result.isValid() && !foundResult && !stop){
                 leftDrive.setPower(0.35);
@@ -276,17 +292,16 @@ public class FinalAuto extends LinearOpMode {
             }
             if(result.isValid() && !stop){
                 foundResult = true;
-                if (Math.pow((result.getTa()/10295.76),-0.5566) < 100.0){
+                if (distance < 0.35){
                     leftDrive.setPower(0.35);
                     rightDrive.setPower(-0.35);
 
                     telemetry.addData("ta", result.getTa());
-                    distance = Math.pow((result.getTa()/10295.76),-0.5566);
-                    distance *= 2;
+                    distance = distanceFromTag();
                     telemetry.addData("distance:", String.valueOf(distance));
                     telemetry.addData("ta:", result.getTa());
                 }
-                else if (Math.pow((result.getTa()/10295.76),-0.5566) > 100.0){
+                else if (distance > 0.35){
                     leftDrive.setPower(0);
                     rightDrive.setPower(0);
                     telemetry.addData("stop:", "stop");
@@ -295,25 +310,12 @@ public class FinalAuto extends LinearOpMode {
             }
 
             //fires if in correct position
-            if (positionFound && !stop){
-                while (!aimAtTag()) {
-
-                }
+            if (positionFound && !stop) {
                 leftDrive.setPower(0.0);
                 rightDrive.setPower(0.0);
-                intake.setPower(-1.0);
-                inPusher.setPower(-1.0);
-                upPusher.setPower(-1.0);
+                primaryIntake.setPower(-1.0);
+                secondaryIntake.setPower(-1.0);
 
-
-
-
-            }
-
-            if (stop) {
-                intake.setPower(0.0);
-                inPusher.setPower(0.0);
-                upPusher.setPower(0.0);
             }
 
             telemetry.update();
@@ -321,64 +323,22 @@ public class FinalAuto extends LinearOpMode {
         limelight.stop();
     }
 
-    public static void sleepSeconds(int seconds) {
-        try {
-            Thread.sleep(seconds * 1000L);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-    private void SHOOTHEBALLS() {
-        leftDrive.setPower(0.0);
-        rightDrive.setPower(0.0);
-        sleepSeconds(1);
-        feederLever.setPosition(1.0); //fires one ball
-        sleepSeconds(1);
-        feederLever.setPosition(0);
-        intake.setPower(-1.0);
-        pusher.setPower(-0.5);
-        pusher1.setPower(-0.5);
-        sleepSeconds(1);
-        intake.setPower(-1.0);
-        pusher.setPower(0);
-        pusher1.setPower(0);
-        feederLever.setPosition(1);
-        sleepSeconds(1);
-        feederLever.setPosition(0);
-
-    }
-
-    private boolean aimAtTag() {
-        final double AIM_TOLERANCE_DEGREES = 1.0; // How close we need to be to count as "aimed"
-
+    private double distanceFromTag() {
         LLResult result = limelight.getLatestResult();
+        double distance = 0;
+        List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults(); // Get the list of all visible tags
+        for (LLResultTypes.FiducialResult fr : fiducials) {
+                Pose3D targetPose = fr.getRobotPoseTargetSpace();               //Gets the "pose" of the robot relative to the AprilTag
+                double x = targetPose.getPosition().x;                          //Obtains x, y, and z of the robot relative to the AprilTag
+                double y = targetPose.getPosition().y;
+                double z = targetPose.getPosition().z;
 
-        if (result != null && result.isValid()) {
-            result = limelight.getLatestResult();
-            // Check if we are already aimed
-            if (Math.abs(result.getTx()) < AIM_TOLERANCE_DEGREES) {
-                // We are aimed. Stop the motors and report success.
-                leftDrive.setPower(0);
-                rightDrive.setPower(0);
-                return true; // Aiming is complete
-
-            } else if (result.getTx() > AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(-0.25);
-                rightDrive.setPower(-0.25);
-                return false; // Aiming is still in progress
-
-            } else if (result.getTx() < -AIM_TOLERANCE_DEGREES) {
-                leftDrive.setPower(0.25);
-                rightDrive.setPower(0.25);
-                return false;
-            }
+                telemetry.addData("April Tag", "Found");
+                distance = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
+                telemetry.addData("distanceFromTag", distance);
+                telemetry.addData("Formula Distance", Math.pow((result.getTa() / 9946.27), -0.560091));
         }
-
-        // If we can't see the tag, we can't aim. Stop motors for safety.
-        telemetry.addLine("No tag detected upon aiming");
-        leftDrive.setPower(0);
-        rightDrive.setPower(0);
-        return false;
+        return distance;
     }
 
     private double getAngle(I2cDeviceSynch as5600) {

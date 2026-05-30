@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
 
+import static java.lang.Math.abs;
+
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
@@ -17,6 +19,7 @@ import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import com.seattlesolvers.solverslib.controller.PIDFController;
@@ -44,14 +47,10 @@ public class PremiereEventTeleop extends LinearOpMode {
     private Servo gate = null;
     private boolean gateOpen = false;
     DcMotorEx flywheel = null;
-    private DcMotor inPusher;
-    private DcMotor upPusher;
-    private DcMotor intake;
+
     private Servo light;
-    private Servo wWiper;
     private Limelight3A limelight;
-    //private Servo feederLever = null;
-    private DigitalChannel laserInput;
+    //private Servo feederLever = null
     private IMU imu;
 
     //PID Controller for Aiming
@@ -111,11 +110,18 @@ public class PremiereEventTeleop extends LinearOpMode {
     private I2cDeviceSynch as5600Left;
     private I2cDeviceSynch as5600Right;
 
+    private TouchSensor button1;
+
+    private TouchSensor button2;
+
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
 
-    private static final double LEFT_ZERO_POSITION = 25.6;
-    private static final double RIGHT_ZERO_POSITION = 146.9;
+    private static final double LEFT_ZERO_POSITION = 172.3;
+    private static final double RIGHT_ZERO_POSITION = 151.6;
+
+    double[] stepSizes = {0.1, 0.01, 0.001, 0.0001, 0.00001};
+    int stepIndex = 2;
 
 
     @Override
@@ -128,16 +134,16 @@ public class PremiereEventTeleop extends LinearOpMode {
         rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
         primaryIntake = hardwareMap.get(DcMotor.class, "primaryIntake");
         secondaryIntake = hardwareMap.get(DcMotor.class, "secondaryIntake");
+
+        button1 = hardwareMap.get(TouchSensor.class, "button");
+        button2 = hardwareMap.get(TouchSensor.class, "button1");
+
+
         gate = hardwareMap.get(Servo.class, "gate");
-        intake     = hardwareMap.get(DcMotor.class, "intake");
         limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
         light = hardwareMap.get(Servo.class, "light");
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        //feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
-        laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
-
-        wWiper = hardwareMap.get(Servo.class, "wiper");
-        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
@@ -189,7 +195,6 @@ public class PremiereEventTeleop extends LinearOpMode {
 
         limelight.start();
 
-        laserInput.setMode(DigitalChannel.Mode.INPUT);
 
         //IMU initialization
         imu = hardwareMap.get(IMU.class, "imu");
@@ -213,7 +218,6 @@ public class PremiereEventTeleop extends LinearOpMode {
         runtime.reset();
         leftTurn.setPower(1.0);
         rightTurn.setPower(1.0);
-        wWiper.setPosition(1.0);
 
 
 
@@ -265,7 +269,7 @@ public class PremiereEventTeleop extends LinearOpMode {
 
             } else {
                 // Valid target = GREEN (Ready to shoot)
-                telemetry.addData('Limelight', 'See tag!');
+                telemetry.addData("Limelight", "See tag");
 
                 // This distance calculation should only happen when the result is valid.
                 distance = distanceFromTag();
@@ -278,11 +282,43 @@ public class PremiereEventTeleop extends LinearOpMode {
             double ly = -gamepad1.left_stick_y;
             double turn = 0;
 
-            if (gamepad1.startWasPressed()) {
-                telemetry.addLine("hi");
-                wWiper.setPosition((wWiper.getPosition() + 1) % 2);
+
+            if (gamepad2.bWasPressed()) {
+                stepIndex = (stepIndex + 1) % stepSizes.length;
             }
 
+            if (gamepad2.dpadLeftWasPressed()) {
+                turret.setKP(turret.getKP() - stepSizes[stepIndex]);
+            }
+            if (gamepad2.dpadRightWasPressed()) {
+                turret.setKP(turret.getKP() + stepSizes[stepIndex]);
+            }
+            if (gamepad2.dpadDownWasPressed()) {
+                turret.setKD(turret.getKD() - stepSizes[stepIndex]);
+            }
+            if (gamepad2.dpadUpWasPressed()) {
+                turret.setKD(turret.getKD() + stepSizes[stepIndex]);
+            }
+
+            if (abs(gamepad2.left_stick_x) > 0.3) {
+                turret.override(gamepad2.left_stick_x / 2);
+
+            } else {
+                turret.override(0.0);
+            }
+
+            if (button1.isPressed() || button2.isPressed() ) {
+                telemetry.addData("buttons", "pressed");
+                turret.freeze();
+            }
+
+            if (gamepad2.startWasPressed()) {
+                if (turret.getFreezeState()) {
+                    turret.unfreeze();
+                } else {
+                    turret.freeze();
+                }
+            }
 
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
 
@@ -320,10 +356,14 @@ public class PremiereEventTeleop extends LinearOpMode {
                     turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
                     aimPid.reset(); // Reset PID memory when not in use
                 }
-
-                if (gamepad1.y){
-                    intake.setPower(-.8);
+                if (result != null) {
+                    if (result.isValid()) {
+                        turret.override(-turn * 0.8);
+                    }
                 }
+
+
+
 
 
 
@@ -398,12 +438,27 @@ public class PremiereEventTeleop extends LinearOpMode {
                     pidfFullWeight.p -=5;
                     flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
                 }
+                targetRPM = 625.181*distance + 1920.281;
+                targetRPM *= flyWheelPowerMultiplier;
+
 
                 double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
                 flywheel.setVelocity(targetTPS);
             }
 
+            if (gamepad2.bWasPressed()) {
+                flyWheelPowerMultiplier = 1.01;
+            }
+            if (gamepad2.aWasPressed()) {
+                flyWheelPowerMultiplier = 1.0;
+            }
 
+            if (gamepad2.rightBumperWasPressed()) {
+                flyWheelPowerMultiplier += 0.01;
+            }
+            if (gamepad2.leftBumperWasPressed()) {
+                flyWheelPowerMultiplier -= 0.01;
+            }
 
 
             // 2. Define Rotation Vectors
@@ -439,7 +494,7 @@ public class PremiereEventTeleop extends LinearOpMode {
             // 5. Optimization for LEFT Pod
             double driveMultLeft = 1.0;
             double diffLeft = closestAngle(targetAngleLeft, leftCurrentDegrees); //here closest angle for turning the wheel is calculated
-            if (Math.abs(diffLeft) > 90) {                                       //if the closest angle is > 90 deg
+            if (abs(diffLeft) > 90) {                                       //if the closest angle is > 90 deg
                 driveMultLeft = -1.0;                                            //reverses the direction of the motor using "driveMultLeft"
                 targetAngleLeft = (targetAngleLeft + 180) % 360;                 //adjusts the angle to the opposite angle
             }
@@ -447,7 +502,7 @@ public class PremiereEventTeleop extends LinearOpMode {
             // 6. Optimization for RIGHT Pod
             double driveMultRight = 1.0;
             double diffRight = closestAngle(targetAngleRight, rightCurrentDegrees);
-            if (Math.abs(diffRight) > 90) {
+            if (abs(diffRight) > 90) {
                 driveMultRight = -1.0;
                 targetAngleRight = (targetAngleRight + 180) % 360;
             }
@@ -469,7 +524,7 @@ public class PremiereEventTeleop extends LinearOpMode {
 
 
             // Switch between fast speed and slow speed
-            if (gamepad1.xWasPressed()) {
+            if (gamepad1.yWasPressed()) {
                 xToggle = !xToggle; // Switches true to false or false to true
             }
 
@@ -554,6 +609,9 @@ public class PremiereEventTeleop extends LinearOpMode {
             //telemetry.addData("kP", aimPid.getP());
             //telemetry.addData("kF", aimPid.getF());
             //telemetry.addData("IntakePower", intakePower);
+            telemetry.addData("Turret KP", "%.5f", turret.getKP());
+            telemetry.addData("Turret KD", "%.5f", turret.getKD());
+            telemetry.addData("Turret Step", "%.5f", stepSizes[stepIndex]);
             telemetry.addData("shot counter", shotsFired);
             telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
             telemetry.addData("flywheel target RPM", targetRPM);
@@ -600,7 +658,7 @@ public class PremiereEventTeleop extends LinearOpMode {
     //to minimize swerveDrive rotation
     private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
         double dir = (target % 360) - (current % 360);           //reduces encoder angle to a value between 0 and 359
-        if (Math.abs(dir) > 180.0) {                             //If the angle is > 180 degrees
+        if (abs(dir) > 180.0) {                             //If the angle is > 180 degrees
             dir = -(Math.signum(dir) * 360.0) + dir;            //subtracts the angle from 360
         }
         return dir;
@@ -756,7 +814,7 @@ public class PremiereEventTeleop extends LinearOpMode {
 
             double error = closestAngle(0, absoluteAngleDegrees);
 
-            if (Math.abs(error) < toleranceDegrees) {
+            if (abs(error) < toleranceDegrees) {
                 break;
             }
 

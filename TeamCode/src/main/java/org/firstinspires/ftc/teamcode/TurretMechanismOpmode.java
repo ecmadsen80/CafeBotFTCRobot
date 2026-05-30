@@ -15,6 +15,8 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.TouchSensor;
 
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+
 import java.util.List;
 
 @TeleOp(name="Turret test", group="Linear OpMode")
@@ -50,9 +52,9 @@ public class TurretMechanismOpmode extends OpMode {
         telemetry.addLine("Post-Init");
 
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        primaryIntake = hardwareMap.get(DcMotor.class, "PrimaryIntake");
-        secondaryIntake = hardwareMap.get(DcMotor.class, "SecondaryIntake");
-        light = hardwareMap.get(Servo.class, "light");+
+        primaryIntake = hardwareMap.get(DcMotor.class, "primaryIntake");
+        secondaryIntake = hardwareMap.get(DcMotor.class, "secondaryIntake");
+        light = hardwareMap.get(Servo.class, "light");
         gate = hardwareMap.get(Servo.class, "gate");
 
         flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -64,9 +66,29 @@ public class TurretMechanismOpmode extends OpMode {
     }
 
     public void start() {
-        turret.resetTimer();
-    }
 
+    }
+    private double distanceFromTag() {
+        LLResult result = limelight.getLatestResult();
+        double distance = 0;
+        List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults(); // Get the list of all visible tags
+        for (LLResultTypes.FiducialResult fr : fiducials) {
+            if (true) {
+                Pose3D targetPose = fr.getRobotPoseTargetSpace();               //Gets the "pose" of the robot relative to the AprilTag
+                double x = targetPose.getPosition().x;                          //Obtains x, y, and z of the robot relative to the AprilTag
+                double y = targetPose.getPosition().y;
+                double z = targetPose.getPosition().z;
+
+                telemetry.addData("April Tag", "Found");
+                distance = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
+                telemetry.addData("distanceFromTag", distance);
+                telemetry.addData("Formula Distance", Math.pow((result.getTa() / 9946.27), -0.560091));
+
+
+            }
+        }
+        return distance;
+    }
     @Override
     public void loop() {
         LLResult result = limelight.getLatestResult();
@@ -75,6 +97,7 @@ public class TurretMechanismOpmode extends OpMode {
 
         if (result != null && result.isValid()) {
             telemetry.addData("Limelight", "sees tag");
+            telemetry.addData("Distance", "%.5f", distanceFromTag());
         }
         else {
             telemetry.addData("Limelight", "no tag");
@@ -103,14 +126,11 @@ public class TurretMechanismOpmode extends OpMode {
             light.setPosition(gateOpen ? 0.283 : 0.5);
         }
 
-        if (gamepad1.dpadUpWasPressed()) {
-            targetRPM = 1000;
+        if (gamepad1.aWasPressed()) {
+            targetRPM = 2500;
         }
 
-        if (gamepad1.dpadDownWasPressed()) {
-            targetRPM = 0;
 
-        }
         if (gamepad1.dpadRightWasPressed()) {
             targetRPM += 25;
         }
@@ -121,11 +141,10 @@ public class TurretMechanismOpmode extends OpMode {
         double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
         flywheel.setVelocity(targetTPS);
 
-        telemetry.addData("kp", "%.5f", turret.getKP());
-        telemetry.addData("kd", "%.5f", turret.getKD());
         telemetry.addData("Gate Open", gateOpen);
         telemetry.addData("Flywheel RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
         telemetry.addData("Flywheel Target RPM", targetRPM);
+
 
         telemetry.update();
     }

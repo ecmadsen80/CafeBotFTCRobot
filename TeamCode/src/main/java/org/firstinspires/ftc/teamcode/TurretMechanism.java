@@ -1,107 +1,194 @@
 package org.firstinspires.ftc.teamcode;
 
+import static java.lang.Math.abs;
+
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 public class TurretMechanism {
 
     private DcMotorEx turret;
 
-    // Limelight settings
+    // PID constants
+    private double kP = 0.013;
+    private double kD = 0.0132;
+
+    // Desired tx
     private double goalX = 0;
-    private double angleTolerance = 3.5;
 
-    // Motor settings
-    private final double MAX_POWER = 0.8;
+    // Limits
+    private final double maxPower = 0.7;
+    private final double minPower = 0.1;
 
-    // 26.9:1 Yellow Jacket (751.8 ticks/rev)
-    // External ratio: 21T -> 70T
-    private final double TICKS_PER_DEGREE = 6.96;
+    // State
+    private double lastError = 0;
+    private double filteredDerivative = 0;
+    private double filteredTx = 0;
 
-    // Optional turret limits
-    private final int MIN_POSITION = -3000;
-    private final int MAX_POSITION = 3000;
+    private boolean isOverridden = false;
+    private boolean isFrozen = false;
+    private double movement = 0.0;
 
-    private boolean isResetting = false;
+    private final ElapsedTime timer = new ElapsedTime();
 
     public void init(HardwareMap hwMap) {
-
         turret = hwMap.get(DcMotorEx.class, "turret");
 
         turret.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-        turret.setTargetPosition(0);
-
-        turret.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        turret.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         turret.setZeroPowerBehavior(
                 DcMotor.ZeroPowerBehavior.BRAKE
         );
 
-        turret.setPower(MAX_POWER);
+        timer.reset();
     }
 
-    public void resetTurret() {
+    public void freeze() {
+        isFrozen = true;
+    }
 
-        isResetting = true;
+    public void unfreeze() {
+        isFrozen = false;
+    }
 
-        turret.setTargetPosition(0);
-        turret.setPower(0.6);
+    public boolean getFreezeState() {
+        return isFrozen;
+    }
+
+    public void override(double power) {
+
+        if (abs(power) < 0.1) {
+            movement = 0;
+            isOverridden = false;
+            isFrozen = false;
+            return;
+        }
+
+        movement = -power;
+        isOverridden = true;
+        isFrozen = true;
+    }
+
+
+    public void setKP(double newKP) {
+        kP = newKP;
+    }
+
+    public void setKD(double newKD) {
+        kD = newKD;
+    }
+
+    public double getKP() {
+        return kP;
+    }
+
+    public double getKD() {
+        return kD;
+    }
+
+    public void resetTimer() {
+        timer.reset();
     }
 
     public void update(LLResult result) {
-
-        // Reset mode
-        if (isResetting) {
-
-            if (!turret.isBusy()) {
-                isResetting = false;
+        if (isFrozen) {
+            if (isOverridden) {
+                turret.setPower(movement);
+                return;
             }
-
+            turret.setPower(0);
             return;
         }
+        // Manual override
 
-        // No target found
+
+        // Frozen
+
+
+        //--------------------------------------
+        // Stable delta time
+        //--------------------------------------
+
+        double deltaTime =
+                Math.max(timer.seconds(),0.01);
+
+        timer.reset();
+
+        //--------------------------------------
+        // Lost target
+        //--------------------------------------
+
         if (result == null || !result.isValid()) {
+
+            turret.setPower(0);
+
+            lastError = 0;
+            filteredDerivative = 0;
+
             return;
         }
 
-        // Horizontal offset from target
-        double error = goalX - result.getTx();
+        //--------------------------------------
+        // Smooth camera data
+        //--------------------------------------
 
-        // Within tolerance → don't move
-        if (Math.abs(error) < angleTolerance) {
-            return;
-        }
+        double tx = result.getTx();
 
-        // Convert degrees into encoder ticks
-        int tickAdjustment =
-                (int)(error * TICKS_PER_DEGREE);
+        // Low-pass filter
+        filteredTx =
+                filteredTx * 0.7 +
+                        tx * 0.3;
 
-        // Move relative to current position
-        int newTarget =
-                turret.getCurrentPosition()
-                + tickAdjustment;
+        //--------------------------------------
+        // PID
+        //--------------------------------------
 
-        // Clamp to turret limits
-        newTarget = Math.max(
-                MIN_POSITION,
-                Math.min(MAX_POSITION, newTarget)
+        double error = goalX - filteredTx;
+
+        // P
+        double pTerm = error * kP;
+
+        // Raw derivative
+        double derivative =
+                (error - lastError)
+                        / deltaTime;
+
+        // Filter derivative
+        filteredDerivative =
+                filteredDerivative * 0.8
+                        + derivative * 0.2;
+
+        double dTerm =
+                filteredDerivative * kD;
+
+        //--------------------------------------
+        // Output
+        //--------------------------------------
+
+        double power =
+                pTerm + dTerm;
+
+// Add safe override assist
+
+
+        power = Range.clip(
+                power,
+                -maxPower,
+                maxPower
         );
 
-        turret.setTargetPosition(newTarget);
+        // Small output deadband
+        if (abs(power) < minPower) {
+            power = 0;
+        }
 
-        // Keep RUN_TO_POSITION active
-        turret.setPower(MAX_POWER);
-    }
+        turret.setPower(power);
 
-    public int getPosition() {
-        return turret.getCurrentPosition();
-    }
-
-    public int getTarget() {
-        return turret.getTargetPosition();
+        lastError = error;
     }
 }
