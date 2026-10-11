@@ -1,25 +1,24 @@
 package org.firstinspires.ftc.teamcode;
 
 
+import static java.lang.Math.abs;
+
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.I2cAddr;
 import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
-
-import java.util.List;
-
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import com.seattlesolvers.solverslib.controller.PIDFController;
@@ -27,27 +26,30 @@ import com.seattlesolvers.solverslib.controller.PIDFController;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
+import java.util.List;
 
-@TeleOp(name="State TeleOp", group="Linear OpMode")
+//did somethig
+@TeleOp(name="Premiere Teleop", group="Linear OpMode")
 
-public class RapidShootTesting extends LinearOpMode {
+public class PremiereEventTeleop extends LinearOpMode {
 
     // Declare OpMode members.
 
     private ElapsedTime runtime = new ElapsedTime();
+    private TurretMechanism turret = new TurretMechanism();
     private DcMotorEx leftDrive = null;
     private DcMotorEx leftTurn = null;
     private DcMotorEx rightDrive = null;
     private DcMotorEx rightTurn = null;
+    private DcMotor primaryIntake = null;
+    private DcMotor secondaryIntake = null;
+    private Servo gate = null;
+    private boolean gateOpen = false;
     DcMotorEx flywheel = null;
-    private DcMotor inPusher;
-    private DcMotor upPusher;
-    private DcMotor intake;
+
     private Servo light;
-    private Servo wWiper;
     private Limelight3A limelight;
-    //private Servo feederLever = null;
-    private DigitalChannel laserInput;
+    //private Servo feederLever = null
     private IMU imu;
 
     //PID Controller for Aiming
@@ -107,11 +109,18 @@ public class RapidShootTesting extends LinearOpMode {
     private I2cDeviceSynch as5600Left;
     private I2cDeviceSynch as5600Right;
 
+    private TouchSensor button1;
+
+    private TouchSensor button2;
+
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
 
-    private static final double LEFT_ZERO_POSITION = 25.6;
-    private static final double RIGHT_ZERO_POSITION = 146.9;
+    private static final double LEFT_ZERO_POSITION = 172.3;
+    private static final double RIGHT_ZERO_POSITION = 151.6;
+
+    double[] stepSizes = {0.1, 0.01, 0.001, 0.0001, 0.00001};
+    int stepIndex = 2;
 
 
     @Override
@@ -122,17 +131,18 @@ public class RapidShootTesting extends LinearOpMode {
         leftTurn   = hardwareMap.get(DcMotorEx.class, "left_turn");
         rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
         rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
-        intake     = hardwareMap.get(DcMotor.class, "intake");
-        inPusher = hardwareMap.get(DcMotor.class, "leftpusher");
-        upPusher = hardwareMap.get(DcMotor.class, "rightpusher");
+        primaryIntake = hardwareMap.get(DcMotor.class, "primaryIntake");
+        secondaryIntake = hardwareMap.get(DcMotor.class, "secondaryIntake");
+
+        button1 = hardwareMap.get(TouchSensor.class, "button");
+        button2 = hardwareMap.get(TouchSensor.class, "button1");
+
+
+        gate = hardwareMap.get(Servo.class, "gate");
         limelight = hardwareMap.get(Limelight3A.class, "Webcam 1");
         light = hardwareMap.get(Servo.class, "light");
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        //feederLever = hardwareMap.get(Servo.class, "feederLever"); //0 is down, 1 is up
-        laserInput = hardwareMap.get(DigitalChannel.class, "distancer");
-        light  = hardwareMap.get(Servo.class, "light");
-        wWiper = hardwareMap.get(Servo.class, "wiper");
-        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
@@ -184,7 +194,6 @@ public class RapidShootTesting extends LinearOpMode {
 
         limelight.start();
 
-        laserInput.setMode(DigitalChannel.Mode.INPUT);
 
         //IMU initialization
         imu = hardwareMap.get(IMU.class, "imu");
@@ -196,8 +205,11 @@ public class RapidShootTesting extends LinearOpMode {
 
         imu.initialize(new IMU.Parameters(orientationOnRobot));
 
+        turret.init(hardwareMap);
+
         telemetry.addData(">", "Robot Ready.  Press Play.");
         telemetry.update();
+
 
 
         waitForStart();
@@ -205,7 +217,6 @@ public class RapidShootTesting extends LinearOpMode {
         runtime.reset();
         leftTurn.setPower(1.0);
         rightTurn.setPower(1.0);
-        wWiper.setPosition(1.0);
 
 
 
@@ -249,15 +260,15 @@ public class RapidShootTesting extends LinearOpMode {
 
 
             LLResult result = limelight.getLatestResult();
-
+            turret.update(result);
             if (!result.isValid()) {
                 // If we can't see a tag, the light should always be RED.
-                light.setPosition(0.30);
+
                 telemetry.addData("Limelight", "No data available");
 
             } else {
                 // Valid target = GREEN (Ready to shoot)
-                light.setPosition(0.50);
+                telemetry.addData("Limelight", "See tag");
 
                 // This distance calculation should only happen when the result is valid.
                 distance = distanceFromTag();
@@ -270,167 +281,69 @@ public class RapidShootTesting extends LinearOpMode {
             double ly = -gamepad1.left_stick_y;
             double turn = 0;
 
-            if (gamepad1.startWasPressed()) {
-                telemetry.addLine("hi");
-                wWiper.setPosition((wWiper.getPosition() + 1) % 2);
+
+            if (gamepad2.bWasPressed()) {
+                stepIndex = (stepIndex + 1) % stepSizes.length;
             }
 
+            if (gamepad2.dpadLeftWasPressed()) {
+                turret.setKP(turret.getKP() - stepSizes[stepIndex]);
+            }
+            if (gamepad2.dpadRightWasPressed()) {
+                turret.setKP(turret.getKP() + stepSizes[stepIndex]);
+            }
+            if (gamepad2.dpadDownWasPressed()) {
+                turret.setKD(turret.getKD() - stepSizes[stepIndex]);
+            }
+            if (gamepad2.dpadUpWasPressed()) {
+                turret.setKD(turret.getKD() + stepSizes[stepIndex]);
+            }
+
+            if (abs(gamepad2.left_stick_x) > 0.3) {
+                turret.override(gamepad2.left_stick_x / 2);
+
+            } else {
+                turret.override(0.0);
+            }
+
+            if (button1.isPressed() || button2.isPressed() ) {
+                telemetry.addData("buttons", "pressed");
+                turret.freeze();
+            }
+
+            if (gamepad2.startWasPressed()) {
+                if (turret.getFreezeState()) {
+                    turret.unfreeze();
+                } else {
+                    turret.freeze();
+                }
+            }
 
             // --- Aim and Shoot State Machine allows ball to be loaded and fired with one button push
-            switch (currentAimState) {
-                case DRIVING:
-                    // If 'A' is pressed, start the aiming process
-
-                    if (gamepad1.aWasPressed()) {
-                        currentAimState = AimState.AIMING;
-                    }
-                    break;
-
-                case AIMING:
-                    // Use the auto-aim logic to turn the robot
-                    turn = pointAtTag();
-                    light.setPosition(0.66);
-                    // Check if we are successfully aimed at the target
-                    if (result.isValid() && Math.abs(result.getTx()) < 3.0) { // Aim is within 5 degrees
-                        // If aimed, move to the next state and shoot
-                        distance = distanceFromTag();
-                        targetRPM = 2394.199*Math.pow(distance,0.3470215);
-                        if (distance > 2) {
-                            targetRPM = flyWheelPowerMultiplier*targetRPM;
-                        }
 
 
-                        rpmStableTimer.reset();
-                        currentAimState = AimState.SPINNING_UP;
-
-                    }
-
-                    // If 'A' is pressed again, cancel the routine
-                    if (gamepad1.aWasPressed()) {
-                        currentAimState = AimState.DRIVING;
-                    }
-                    break;
-
-                case SPINNING_UP:
-                    // In this state, we are aimed, but waiting for the flywheel to be stable. Once it's
-                    // stable program goes back to "driving" mode so that the drive can manually shoot with "B"
-                    // Servo light is blue until RPMs are stable
-                    // Keep the robot aimed at the tag in case it drifts.
-                    turn = pointAtTag();
-                    // <-- Add one more ')' here
-                    light.setPosition(0.66);
-                    // Get the current flywheel velocity in RPM
-
-
-                    double targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
-
-                    flywheel.setVelocity(targetTPS);
-
-                    double currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
-                    // Check if the flywheel is within the desired speed range (e.g., 95% of target)
-                    if (targetRPM > 0 && Math.abs((currentRPM-targetRPM)/targetRPM) < 0.05) {
-                        // If the speed has been stable for set time (ms) , move back to Driving state.
-                        if (rpmStableTimer.milliseconds() >= 250) {
-                            light.setPosition(0.50);
-                            currentAimState = AimState.DRIVING;
-                            ballLoadedTimer.reset();
-                        }
-                    } else {
-                        // If the speed drops out of range, reset the stability timer.
-                        rpmStableTimer.reset();
-                    }
-
-                    // Allow the driver to cancel
-                    if (gamepad1.aWasPressed()) {
-                        flywheel.setVelocity(0);
-                        currentAimState = AimState.DRIVING;
-                    }
-                    break;
-
-
-                case SHOOTING:
-                    /*
-                    turn = pointAtTag(); // Keep aiming while shooting
-
-                   // 1. Get the stable RPM right before we start pushing.
-                    double initialRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
-
-                    // 2. Turn on the pusher motors.
-                    intake.setPower(-1);
-                    inPusher.setPower(-PUSHER_POWER);
-                    upPusher.setPower(-PUSHER_POWER);
-
-                    ElapsedTime shotTimer = new ElapsedTime(); // Safety timeout
-
-                    // 3. Loop until RPM drops or we time out.
-                    while (opModeIsActive() && shotTimer.seconds() < 3.0) { // 3-second safety timeout
-                        currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
-
-                        // Check if speed has dropped by more than 2% (adjust as needed)
-                        if (currentRPM < (initialRPM * 0.98)) {
-                            // RPM has dropped, indicating a successful shot. Exit the loop.
-                            break;
-                        }
-                    }
-
-                    // 4. Turn off the pusher motors and intake
-                    intake.setPower(0);
-                    inPusher.setPower(0);
-                    upPusher.setPower(0);
-
-                    // --- End of RPM Drop Logic ---
-
-                    // Increment shot counter and move to the recovery state.
-                    shotsFired++;
-                    rpmStableTimer.reset();
-                    currentAimState = AimState.RECOVERING_SPEED;
-                    break;
-
-                     */
-
-                case RECOVERING_SPEED:
-                   /*
-                    turn = pointAtTag();
-
-                    currentRPM = flywheel.getVelocity() / TICKS_PER_REV * 60;
-                    targetTPS = (targetRPM / 60.0) * TICKS_PER_REV;
-
-                    flywheel.setVelocity(targetTPS);
-
-                    // Check if speed has recovered
-                    if (targetRPM > 0 && Math.abs((currentRPM - targetRPM) / targetRPM) < 0.05) {
-                        // If speed has been stable for a moment, decide what to do next
-                        if (rpmStableTimer.milliseconds() >= 100) {
-                            if (shotsFired >= 3) {
-                                // We are done with all shots, go back to driving
-                                shotsFired = 0;
-                                currentAimState = AimState.DRIVING;
-
-                            } else {
-                                // We have more shots to fire.
-
-                                // Go back to SHOOTING for the next ball
-                                currentAimState = AimState.SHOOTING;
-                            }
-                        }
-                    } else {
-                        // If speed is not stable, reset the timer
-                        rpmStableTimer.reset();
-                    }
-
-                    // Cancel logic
-                    if (gamepad1.aWasPressed()) {
-                        currentAimState = AimState.DRIVING;
-                        flywheel.setVelocity(0);
-                    }
-                    break;
-
-                    */
-
+            double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
+            if (intakePower > 0.1) {
+                primaryIntake.setPower(0.8);
+                secondaryIntake.setPower(-1);
+            }
+            else if (intakePower < -0.1) {
+                primaryIntake.setPower(-0.8);
+                secondaryIntake.setPower(1);
+            }
+            else {
+                //Rest Powers to 0 when buttons not pushed
+                primaryIntake.setPower(0.0);
+                secondaryIntake.setPower(0.0);
 
             }
 
 
+            if(gamepad1.xWasPressed()) {
+                gateOpen = !gateOpen;
+                gate.setPosition(gateOpen ? 1.0 : 0.0);
+                light.setPosition(gateOpen ? 0.283 : 0.5);
+            }
 
 
             //Aiming the Robot if Right Bumper Pushed, otherwise use the right stick
@@ -442,16 +355,16 @@ public class RapidShootTesting extends LinearOpMode {
                     turn = gamepad1.right_stick_x * RIGHT_STICK_ADJUSTER;
                     aimPid.reset(); // Reset PID memory when not in use
                 }
-
-                if (gamepad1.y){
-                    intake.setPower(-.8);
+                if (result != null) {
+                    if (result.isValid()) {
+                        turret.override(-turn * 0.8);
+                    }
                 }
 
-                if (gamepad1.left_bumper){
-                    intake.setPower(.8);
-                    inPusher.setPower(PUSHER_POWER);
-                    upPusher.setPower(PUSHER_POWER);
-                }
+
+
+
+
 
                 if (gamepad1.dpadUpWasPressed()){
                     targetRPM += 25;
@@ -524,12 +437,27 @@ public class RapidShootTesting extends LinearOpMode {
                     pidfFullWeight.p -=5;
                     flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
                 }
+                targetRPM = 625.181*distance + 1920.281;
+                targetRPM *= flyWheelPowerMultiplier;
+
 
                 double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
                 flywheel.setVelocity(targetTPS);
             }
 
+            if (gamepad2.bWasPressed()) {
+                flyWheelPowerMultiplier = 1.01;
+            }
+            if (gamepad2.aWasPressed()) {
+                flyWheelPowerMultiplier = 1.0;
+            }
 
+            if (gamepad2.rightBumperWasPressed()) {
+                flyWheelPowerMultiplier += 0.01;
+            }
+            if (gamepad2.leftBumperWasPressed()) {
+                flyWheelPowerMultiplier -= 0.01;
+            }
 
 
             // 2. Define Rotation Vectors
@@ -565,7 +493,7 @@ public class RapidShootTesting extends LinearOpMode {
             // 5. Optimization for LEFT Pod
             double driveMultLeft = 1.0;
             double diffLeft = closestAngle(targetAngleLeft, leftCurrentDegrees); //here closest angle for turning the wheel is calculated
-            if (Math.abs(diffLeft) > 90) {                                       //if the closest angle is > 90 deg
+            if (abs(diffLeft) > 90) {                                       //if the closest angle is > 90 deg
                 driveMultLeft = -1.0;                                            //reverses the direction of the motor using "driveMultLeft"
                 targetAngleLeft = (targetAngleLeft + 180) % 360;                 //adjusts the angle to the opposite angle
             }
@@ -573,7 +501,7 @@ public class RapidShootTesting extends LinearOpMode {
             // 6. Optimization for RIGHT Pod
             double driveMultRight = 1.0;
             double diffRight = closestAngle(targetAngleRight, rightCurrentDegrees);
-            if (Math.abs(diffRight) > 90) {
+            if (abs(diffRight) > 90) {
                 driveMultRight = -1.0;
                 targetAngleRight = (targetAngleRight + 180) % 360;
             }
@@ -595,7 +523,7 @@ public class RapidShootTesting extends LinearOpMode {
 
 
             // Switch between fast speed and slow speed
-            if (gamepad1.xWasPressed()) {
+            if (gamepad1.yWasPressed()) {
                 xToggle = !xToggle; // Switches true to false or false to true
             }
 
@@ -614,27 +542,7 @@ public class RapidShootTesting extends LinearOpMode {
             //Right trigger intakes (but doesn't activate upPusher)
             //Left trigger outtakes (but doesn't activate upPusher)
             //b-button runs intake and both pushers, hopefully shooting
-            double intakePower = gamepad1.right_trigger-gamepad1.left_trigger;
-            if (intakePower > 0.1) {
-                intake.setPower(-.8);
-                inPusher.setPower(-PUSHER_POWER);
-            }
-            else if (intakePower < -0.1) {
-                intake.setPower(.8);
-                inPusher.setPower(PUSHER_POWER);
-            }
 
-            else if (gamepad1.b){
-                intake.setPower(-.8);
-                inPusher.setPower(-PUSHER_POWER);
-                upPusher.setPower(-PUSHER_POWER);
-            }
-            else {
-                //Rest Powers to 0 when buttons not pushed
-                intake.setPower(0.0);
-                inPusher.setPower(0.0);
-                upPusher.setPower(0.0);
-            }
 
 
             //singlebutton shoot only
@@ -700,6 +608,9 @@ public class RapidShootTesting extends LinearOpMode {
             //telemetry.addData("kP", aimPid.getP());
             //telemetry.addData("kF", aimPid.getF());
             //telemetry.addData("IntakePower", intakePower);
+            telemetry.addData("Turret KP", "%.5f", turret.getKP());
+            telemetry.addData("Turret KD", "%.5f", turret.getKD());
+            telemetry.addData("Turret Step", "%.5f", stepSizes[stepIndex]);
             telemetry.addData("shot counter", shotsFired);
             telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
             telemetry.addData("flywheel target RPM", targetRPM);
@@ -746,7 +657,7 @@ public class RapidShootTesting extends LinearOpMode {
     //to minimize swerveDrive rotation
     private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
         double dir = (target % 360) - (current % 360);           //reduces encoder angle to a value between 0 and 359
-        if (Math.abs(dir) > 180.0) {                             //If the angle is > 180 degrees
+        if (abs(dir) > 180.0) {                             //If the angle is > 180 degrees
             dir = -(Math.signum(dir) * 360.0) + dir;            //subtracts the angle from 360
         }
         return dir;
@@ -902,7 +813,7 @@ public class RapidShootTesting extends LinearOpMode {
 
             double error = closestAngle(0, absoluteAngleDegrees);
 
-            if (Math.abs(error) < toleranceDegrees) {
+            if (abs(error) < toleranceDegrees) {
                 break;
             }
 
