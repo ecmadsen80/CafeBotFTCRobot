@@ -3,12 +3,14 @@ package org.firstinspires.ftc.teamcode;
 import static java.lang.Math.abs;
 
 import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.I2cAddr;
 import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
+import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.util.Range;
 
 @TeleOp(group="BIOBUZZ", name="BIOBUZZ-Swerve")
@@ -29,8 +31,8 @@ public class Swervebot extends LinearOpMode {
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
 
-    private static final double LEFT_ZERO_POSITION = 172.3;
-    private static final double RIGHT_ZERO_POSITION = 151.6;
+    private static final double LEFT_ZERO_POSITION = 354.375;
+    private static final double RIGHT_ZERO_POSITION = 173.32;
 
     private boolean speedToggle = false;
 
@@ -56,10 +58,47 @@ public class Swervebot extends LinearOpMode {
         as5600Right.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
         as5600Right.engage();
 
+        //Motor Parameter Setup
+        leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        leftTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        leftTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        leftTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        leftTurn.setTargetPosition(0);
+        rightTurn.setTargetPosition(0);
+
+        leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+
+
+        //feederLever.setPosition(0); //down
+
+        //dashboard initialization
+
+
+
+        //IMU initialization
+
+
+        telemetry.addData(">", "Robot Ready.  Press Play.");
+        telemetry.update();
+
+
+
         waitForStart();
 
         leftTurn.setPower(1.0);
-        rightTurn.setPower(0.0);
+        rightTurn.setPower(1.0);
+
+
 
         //Wheel alignment code
         double currentAngle = getAngle(as5600Left);
@@ -91,6 +130,7 @@ public class Swervebot extends LinearOpMode {
         rightTurn.setTargetPosition(0);
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
 
         while (opModeIsActive()) {
             double lx = gamepad1.left_stick_x;
