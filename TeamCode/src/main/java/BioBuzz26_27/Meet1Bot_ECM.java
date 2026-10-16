@@ -1,29 +1,35 @@
-package org.firstinspires.ftc.teamcode;
+package BioBuzz26_27;
 
 import static java.lang.Math.abs;
 
+
+
 import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.I2cAddr;
 import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
-import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.Range;
 
-@TeleOp(group="BIOBUZZ", name="BIOBUZZ-Swerve")
-public class Swervebot extends LinearOpMode {
+@TeleOp(group="BIOBUZZ", name="Meet1")
+public class Meet1Bot_ECM extends LinearOpMode {
 
     private DcMotorEx leftDrive = null;
     private DcMotorEx leftTurn = null;
     private DcMotorEx rightDrive = null;
     private DcMotorEx rightTurn = null;
+    private DcMotorEx intake = null;
+    private DcMotorEx flywheel = null;
+    private Servo gate = null;
 
     static final double GOBILDA_ENCODER_TICKS = 751.8;
     static final double TURN_VELOCITY = 2500; //i set to 1000 to move slower
     static final double DEADZONE = 0.1;
+    static final double TICKS_PER_REV = 28;
 
     private I2cDeviceSynch as5600Left;
     private I2cDeviceSynch as5600Right;
@@ -35,6 +41,8 @@ public class Swervebot extends LinearOpMode {
     private static final double RIGHT_ZERO_POSITION = 173.32;
 
     private boolean speedToggle = false;
+    private boolean gateOpen = false;
+    private double targetRPM = 0;
 
     public void runOpMode() {
         //Device setup code
@@ -42,6 +50,9 @@ public class Swervebot extends LinearOpMode {
         leftTurn   = hardwareMap.get(DcMotorEx.class, "left_turn");
         rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
         rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
+        intake = hardwareMap.get(DcMotorEx.class, "intake");
+        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        gate = hardwareMap.get(Servo.class, "gate");
 
 
         //Absolute encoder setup code
@@ -77,9 +88,13 @@ public class Swervebot extends LinearOpMode {
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
+        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        //flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
 
-
-        //feederLever.setPosition(0); //down
+        gate.setPosition(0); //down
 
         //dashboard initialization
 
@@ -204,14 +219,47 @@ public class Swervebot extends LinearOpMode {
                 speedToggle = !speedToggle; // Switches true to false or false to true
             }
 
-
-
             // Determine the speed multiplier based on the toggle state
             double speedLimit = speedToggle ? 0.5 : 1.0;
 
             // Motor power combination of left and right sides and fast/slow state
             leftDrive.setPower(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
             rightDrive.setPower(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
+
+            double intakePower = 0;
+            if (gamepad1.right_trigger > 0) {
+                intakePower += 1.0;
+            }
+            if (gamepad1.left_trigger > 0) {
+                intakePower -= 1.0;
+            }
+            intake.setPower(intakePower);
+
+            if (gamepad1.dpad_up) {
+                targetRPM += 25;
+            }
+            if (gamepad1.dpad_down) {
+                targetRPM -= 25;
+            }
+
+            double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
+            flywheel.setVelocity(targetTPS);
+
+            if(gamepad1.xWasPressed()) {
+                gateOpen = !gateOpen;
+                gate.setPosition(gateOpen ? 1.0 : 0.0);
+            }
+
+            // Deadzone
+            if (magLeft < DEADZONE && magRight < DEADZONE) {
+                leftDrive.setPower(0);
+                rightDrive.setPower(0);
+                leftTurn.setVelocity(0); //setVelocity actively holds the motor in it's current position
+                rightTurn.setVelocity(0);
+            }
+
+            telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
+            telemetry.addData("flywheel target RPM", targetRPM);
         }
 
     }

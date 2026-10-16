@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package BioBuzz26_27;
 
 import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -7,8 +7,8 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.I2cAddr;
 import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
 
-@TeleOp(name = "AS5600 via 2m sensor", group = "Test")
-public class AS5600Test extends LinearOpMode {
+@TeleOp(name = "new file", group = "BIOBUZZ")
+public class newas5600 extends LinearOpMode {
 
     private DcMotor motor;
     private I2cDeviceSynch as5600Right;
