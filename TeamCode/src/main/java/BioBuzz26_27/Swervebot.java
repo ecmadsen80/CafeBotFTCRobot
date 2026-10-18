@@ -26,6 +26,8 @@ public class Swervebot extends LinearOpMode {
     private I2cDeviceSynch as5600Left;
     private I2cDeviceSynch as5600Right;
 
+    private Intake intake;
+
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
 
@@ -40,6 +42,8 @@ public class Swervebot extends LinearOpMode {
         leftTurn   = hardwareMap.get(DcMotorEx.class, "left_turn");
         rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
         rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
+        intake.init(hardwareMap);
+
 
 
         //Absolute encoder setup code
