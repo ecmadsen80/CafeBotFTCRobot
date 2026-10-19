@@ -50,7 +50,7 @@ public class Pushbot extends LinearOpMode {
         odo.update();
 
 
-        odo.setPosition(new Pose2D(DistanceUnit.INCH, 54, 48, AngleUnit.DEGREES, 90));
+        odo.setPosition(new Pose2D(DistanceUnit.INCH, -54, 48, AngleUnit.DEGREES, 180));
         odo.update();
         waitForStart();
         while (opModeIsActive()) {

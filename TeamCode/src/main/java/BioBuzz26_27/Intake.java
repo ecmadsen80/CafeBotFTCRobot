@@ -13,6 +13,8 @@ public class Intake {
 
     public void setPower(double p) {
         intake.setPower(power);
+        power = p;
     }
+    public double getPower() { return power }
 
 }

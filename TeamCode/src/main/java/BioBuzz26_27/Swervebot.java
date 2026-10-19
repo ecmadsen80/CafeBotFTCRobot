@@ -67,7 +67,7 @@ public class Swervebot extends LinearOpMode {
         leftTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightTurn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        leftTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        leftTurnsetMode(DcMotor.RunMode.RUN_USING_ENCODER);.
         rightTurn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         leftTurn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
