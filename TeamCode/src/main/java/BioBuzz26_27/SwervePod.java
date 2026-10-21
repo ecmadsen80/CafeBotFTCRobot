@@ -41,4 +41,19 @@ public class SwervePod {
         turn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
     }
 
+    public void setAngle(double ticks) {
+        turn.setTargetPosition(ticks);
+    }
+    public void setDrive(double power) {
+        drive.setPower(power);
+    }
+
+    public double getEncoderAngle() {
+        return encoder.getAngle();
+    }
+
+    public double getMotorAngle() {
+        return drive.getCurrentPosition();
+    }
+
 }
