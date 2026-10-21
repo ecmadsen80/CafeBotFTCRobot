@@ -59,7 +59,7 @@ public class SwerveRobot {
         double changeY = amount * Math.sin(Math.toRadians(direction));
     }
 
-    public void driveGamepad(double lx, double ly) {
+    public void driveGamepad(double lx, double ly, double turn) {
         double leftRotationX = 0;   // Vertical component of rotation for left pod
         double leftRotationY = turn;
         double rightRotationX = 0;
