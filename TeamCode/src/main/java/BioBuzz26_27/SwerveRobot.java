@@ -52,11 +52,11 @@ public class SwerveRobot {
         podRight.calibrate();
     }
 
-    public void driveTo(double direction, double amount double speed) {
+    public void driveTo(double direction, double amount, double speed) {
         double changeX = amount * Math.cos(Math.toRadians(direction));
         double changeY = amount * Math.sin(Math.toRadians(direction));
     }
 
-    public void drive()
+    //public void drive();
 
 }

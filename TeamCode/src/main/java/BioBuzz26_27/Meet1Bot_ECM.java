@@ -89,7 +89,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
         flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        flywheel.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         //flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
@@ -97,7 +97,9 @@ public class Meet1Bot_ECM extends LinearOpMode {
         gate.setPosition(0); //down
 
         //dashboard initialization
-
+        com.acmerobotics.dashboard.FtcDashboard dashboard = com.acmerobotics.dashboard.FtcDashboard.getInstance();
+        com.acmerobotics.dashboard.telemetry.TelemetryPacket packet = new com.acmerobotics.dashboard.telemetry.TelemetryPacket();
+        com.qualcomm.robotcore.hardware.VoltageSensor batteryVoltageSensor = hardwareMap.voltageSensor.iterator().next();
 
 
         //IMU initialization
@@ -109,7 +111,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
 
 
         waitForStart();
-
+/*
         leftTurn.setPower(1.0);
         rightTurn.setPower(1.0);
 
@@ -136,6 +138,10 @@ public class Meet1Bot_ECM extends LinearOpMode {
 
         while (leftTurn.isBusy() || rightTurn.isBusy()) {
             telemetry.addLine("Aligning wheels...");
+            telemetry.addData("Goal Position", RIGHT_ZERO_POSITION);
+            telemetry.addLine("Right: " + rightTurn.getCurrentPosition());
+            telemetry.addData("Goal Left Position", LEFT_ZERO_POSITION);
+            telemetry.addLine("Left: " + leftTurn.getCurrentPosition());
             telemetry.update();
         }
 
@@ -145,7 +151,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
         rightTurn.setTargetPosition(0);
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
+*/
 
         while (opModeIsActive()) {
             double lx = gamepad1.left_stick_x;
@@ -228,29 +234,50 @@ public class Meet1Bot_ECM extends LinearOpMode {
 
             double intakePower = 0;
             if (gamepad1.right_trigger > 0) {
-                intakePower += 1.0;
-            }
-            if (gamepad1.left_trigger > 0) {
                 intakePower -= 1.0;
             }
-            intake.setPower(intakePower);
+            if (gamepad1.left_trigger > 0) {
+                intakePower += 1.0;
+            }
 
-            if (gamepad1.dpad_up) {
+
+            if (gamepad1.dpadUpWasPressed()) {
                 targetRPM += 25;
             }
-            if (gamepad1.dpad_down) {
+            if (gamepad1.dpadDownWasPressed()) {
                 targetRPM -= 25;
+            }
+
+            if (gamepad1.dpadRightWasPressed()) {
+                targetRPM += 250;
+            }
+            if (gamepad1.dpadLeftWasPressed()) {
+                targetRPM -= 250;
+            }
+
+            if (gamepad1.aWasPressed()) {
+                targetRPM = 0;
             }
 
             double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
             flywheel.setVelocity(targetTPS);
 
+            /*
             if(gamepad1.xWasPressed()) {
                 gateOpen = !gateOpen;
                 gate.setPosition(gateOpen ? 1.0 : 0.0);
             }
+            */
 
-            // Deadzone
+            if (gamepad1.x) {
+                gate.setPosition(1.0);
+                intakePower = (intakePower*0.5);
+            }
+            else {
+                gate.setPosition(0.0);
+            }
+            intake.setPower(intakePower);
+            // Deadzone ]
             if (magLeft < DEADZONE && magRight < DEADZONE) {
                 leftDrive.setPower(0);
                 rightDrive.setPower(0);
@@ -258,8 +285,14 @@ public class Meet1Bot_ECM extends LinearOpMode {
                 rightTurn.setVelocity(0);
             }
 
+            double flyWheelVelocityToShow = (flywheel.getVelocity()*TICKS_PER_REV)*60;
+            packet.put("Flywheel Velocity", flyWheelVelocityToShow );
+            dashboard.sendTelemetryPacket(packet);
+
             telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
             telemetry.addData("flywheel target RPM", targetRPM);
+            telemetry.update();
+
         }
 
     }
