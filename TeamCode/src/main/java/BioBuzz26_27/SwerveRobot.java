@@ -2,8 +2,13 @@ package BioBuzz26_27;
 
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
 
+import static java.lang.Math.abs;
+
+import java.lang.Math;
+
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -15,6 +20,7 @@ public class SwerveRobot {
     private Intake intake;
     private GoBildaPinpointDriver odo;
     private ElapsedTime time = new ElapsedTime();
+    static final double GOBILDA_ENCODER_TICKS = 751.8;
 
     public void init(HardwareMap hw) {
         podLeft.init(hw, "left_turn", "left_drive", "as5600Left");
@@ -52,11 +58,73 @@ public class SwerveRobot {
         podRight.calibrate();
     }
 
-    public void driveTo(double direction, double amount, double speed) {
+    public void driveAt(double direction, double amount, double speed) {
         double changeX = amount * Math.cos(Math.toRadians(direction));
         double changeY = amount * Math.sin(Math.toRadians(direction));
     }
 
-    //public void drive();
+    public void driveGamepad(double lx, double ly, double turn) {
+        double leftRotationX = 0;   // Vertical component of rotation for left pod
+        double leftRotationY = turn;
+        double rightRotationX = 0;
+        double rightRotationY = -turn;
 
+        // 3. Combine Translation (Left Stick) and Rotation (Right Stick)
+        double combinedLeftX = lx + leftRotationX;
+        double combinedLeftY = ly + leftRotationY;
+        double combinedRightX = lx + rightRotationX;
+        double combinedRightY = ly + rightRotationY;
+
+        // 4. Calculate Individual Magnitudes and Angles
+        double magLeft = Math.hypot(combinedLeftX, combinedLeftY);
+        double magRight = Math.hypot(combinedRightX, combinedRightY);
+
+        double targetAngleLeft = Math.toDegrees(Math.atan2(combinedLeftX, combinedLeftY));
+        double targetAngleRight = Math.toDegrees(Math.atan2(combinedRightX, combinedRightY));
+
+        if (targetAngleLeft < 0) targetAngleLeft += 360;
+        if (targetAngleRight < 0) targetAngleRight += 360;
+        //get current encoder positions
+        int leftCurrentTicks = podLeft.getMotorAngle();
+        int rightCurrentTicks = podRight.getMotorAngle();
+        // Convert to degrees
+        int leftCurrentDegrees = (int)((leftCurrentTicks / (double)GOBILDA_ENCODER_TICKS) * 360);
+        int rightCurrentDegrees = (int)((rightCurrentTicks / (double)GOBILDA_ENCODER_TICKS) * 360);
+
+        // 5. Optimization for LEFT Pod
+        double driveMultLeft = 1.0;
+        double diffLeft = closestAngle(targetAngleLeft, leftCurrentDegrees); //here closest angle for turning the wheel is calculated
+        if (abs(diffLeft) > 90) {                                       //if the closest angle is > 90 deg
+            driveMultLeft = -1.0;                                            //reverses the direction of the motor using "driveMultLeft"
+            targetAngleLeft = (targetAngleLeft + 180) % 360;                 //adjusts the angle to the opposite angle
+        }
+
+        // 6. Optimization for RIGHT Pod
+        double driveMultRight = 1.0;
+        double diffRight = closestAngle(targetAngleRight, rightCurrentDegrees);
+        if (abs(diffRight) > 90) {
+            driveMultRight = -1.0;
+            targetAngleRight = (targetAngleRight + 180) % 360;
+        }
+
+        // 7. Calculate Final Motor Targets
+        double moveLeft = closestAngle(targetAngleLeft, leftCurrentDegrees) + leftCurrentDegrees;
+        double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
+
+        podLeft.setAngle((int)((moveLeft / 360.0) * GOBILDA_ENCODER_TICKS));
+        podLeft.setAngle((int)((moveRight / 360.0) * GOBILDA_ENCODER_TICKS));
+
+        double maxMag = Math.max(1.0, Math.max(magLeft, magRight));
+        double speedLimit = 1.0;
+        podLeft.setDrive(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
+        podRight.setDrive(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
+    }
+
+    private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
+        double dir = (target % 360) - (current % 360);           //reduces encoder angle to a value between 0 and 359
+        if (abs(dir) > 180.0) {                             //If the angle is > 180 degrees
+            dir = -(Math.signum(dir) * 360.0) + dir;            //subtracts the angle from 360
+        }
+        return dir;
+    }
 }

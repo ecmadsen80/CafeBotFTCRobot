@@ -15,6 +15,6 @@ public class Intake {
         intake.setPower(power);
         power = p;
     }
-    // public double getPower() { return power }
+    public double getPower() { return power; }
 
 }

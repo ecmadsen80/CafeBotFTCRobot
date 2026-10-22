@@ -28,7 +28,7 @@ public class SwervePod {
         turn.setVelocity(2500);
     }
 
-    public boolean isBusy() {return turn.isBusy();}
+    public boolean isBusy() {return turn.isBusy(); }
     public void setDrive(double power) {
         drive.setPower(0.0);
     }
@@ -39,6 +39,18 @@ public class SwervePod {
         drive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         turn.setTargetPosition(0);
         turn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+    }
+
+    public void setAngle(int ticks) {
+        turn.setTargetPosition(ticks);
+    }
+
+    public double getEncoderAngle() {
+        return encoder.getAngle();
+    }
+
+    public int getMotorAngle() {
+        return drive.getCurrentPosition();
     }
 
 }
