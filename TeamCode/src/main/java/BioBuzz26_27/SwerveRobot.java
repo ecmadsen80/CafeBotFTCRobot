@@ -2,10 +2,13 @@ package BioBuzz26_27;
 
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
 
+import static java.lang.Math.abs;
+
 import java.lang.Math;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -17,6 +20,7 @@ public class SwerveRobot {
     private Intake intake;
     private GoBildaPinpointDriver odo;
     private ElapsedTime time = new ElapsedTime();
+    static final double GOBILDA_ENCODER_TICKS = 751.8;
 
     public void init(HardwareMap hw) {
         podLeft.init(hw, "left_turn", "left_drive", "as5600Left");
@@ -112,8 +116,8 @@ public class SwerveRobot {
 
         double maxMag = Math.max(1.0, Math.max(magLeft, magRight));
         double speedLimit = 1.0;
-        podLeft.setPower(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
-        podRight.setPower(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
+        podLeft.setDrive(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
+        podRight.setDrive(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
     }
 
     private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
