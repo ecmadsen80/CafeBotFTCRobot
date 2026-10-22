@@ -28,7 +28,7 @@ public class SwervePod {
         turn.setVelocity(2500);
     }
 
-    public boolean isBusy() {return turn.isBusy()}
+    public boolean isBusy() {return turn.isBusy(); }
     public void setDrive(double power) {
         drive.setPower(0.0);
     }
