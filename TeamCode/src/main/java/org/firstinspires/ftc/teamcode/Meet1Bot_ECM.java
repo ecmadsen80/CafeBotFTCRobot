@@ -111,7 +111,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
 
 
         waitForStart();
-/*
+
         leftTurn.setPower(1.0);
         rightTurn.setPower(1.0);
 
@@ -151,7 +151,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
         rightTurn.setTargetPosition(0);
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-*/
+
 
         while (opModeIsActive()) {
             double lx = gamepad1.left_stick_x;
