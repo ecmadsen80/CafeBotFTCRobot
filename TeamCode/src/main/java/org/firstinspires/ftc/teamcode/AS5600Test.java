@@ -25,17 +25,17 @@ public class AS5600Test extends LinearOpMode {
         // ----- Motor Setup -----
 
         // ----- AS5600 Setup via REV 2m Distance Sensor -----
-        Rev2mDistanceSensor dummySensor =
+        Rev2mDistanceSensor dummySensorR =
                 hardwareMap.get(Rev2mDistanceSensor.class, "as5600Right");
-        Rev2mDistanceSensor dummySensor2 =
+        Rev2mDistanceSensor dummySensorL =
                 hardwareMap.get(Rev2mDistanceSensor.class, "as5600Left");
 
 
-        as5600Left = dummySensor.getDeviceClient();
+        as5600Left = dummySensorL.getDeviceClient();
         as5600Left.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
         as5600Left.engage();
 
-        as5600Right = dummySensor2.getDeviceClient();
+        as5600Right = dummySensorR.getDeviceClient();
         as5600Right.setI2cAddress(I2cAddr.create7bit(AS5600_ADDR));
         as5600Right.engage();
 

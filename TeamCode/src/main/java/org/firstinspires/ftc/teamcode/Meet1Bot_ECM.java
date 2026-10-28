@@ -12,6 +12,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.I2cAddr;
 import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.Range;
 
@@ -23,12 +24,13 @@ public class Meet1Bot_ECM extends LinearOpMode {
     private DcMotorEx rightDrive = null;
     private DcMotorEx rightTurn = null;
     private DcMotorEx intake = null;
-    private DcMotorEx flywheel = null;
+    private DcMotorEx flywheelRight = null;
+    private DcMotorEx flywheelLeft = null;
     private Servo gate = null;
 
     static final double GOBILDA_ENCODER_TICKS = 751.8;
     static final double TURN_VELOCITY = 2500; //i set to 1000 to move slower
-    static final double DEADZONE = 0.1;
+    static final double DEADZONE = 0.2;
     static final double TICKS_PER_REV = 28;
 
     private I2cDeviceSynch as5600Left;
@@ -37,9 +39,10 @@ public class Meet1Bot_ECM extends LinearOpMode {
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
 
-    private static final double LEFT_ZERO_POSITION = 354.375;
-    private static final double RIGHT_ZERO_POSITION = 173.32;
+    private static final double LEFT_ZERO_POSITION = 353;
+    private static final double RIGHT_ZERO_POSITION = 176;
 
+    private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(100,0.0, 0.0, 10);
     private boolean speedToggle = false;
     private boolean gateOpen = false;
     private double targetRPM = 0;
@@ -51,7 +54,8 @@ public class Meet1Bot_ECM extends LinearOpMode {
         rightDrive = hardwareMap.get(DcMotorEx.class, "right_drive");
         rightTurn  = hardwareMap.get(DcMotorEx.class, "right_turn");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
-        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        flywheelRight = hardwareMap.get(DcMotorEx.class, "flywheelRight");
+        flywheelLeft = hardwareMap.get(DcMotorEx.class, "flywheelLeft");
         gate = hardwareMap.get(Servo.class, "gate");
 
 
@@ -88,11 +92,13 @@ public class Meet1Bot_ECM extends LinearOpMode {
         leftTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightTurn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
-        flywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        //flywheel.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
+
+        flywheelRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flywheelRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        flywheelLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheelLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flywheelLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        flywheelRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
 
         gate.setPosition(0); //down
 
@@ -116,17 +122,16 @@ public class Meet1Bot_ECM extends LinearOpMode {
         rightTurn.setPower(1.0);
 
 
-
-        //Wheel alignment code
+       //Wheel alignment code
         double currentAngle = getAngle(as5600Left);
         double zeroAngle = LEFT_ZERO_POSITION;
         double angleError = ((zeroAngle - currentAngle + 540) % 360) - 180;
         int deltaTicks = (int) Math.round(angleError / 360.0 * GOBILDA_ENCODER_TICKS);
 
         leftTurn.setTargetPosition(leftTurn.getCurrentPosition() - deltaTicks);
-
         leftTurn.setVelocity(TURN_VELOCITY);
-        currentAngle = getAngle(as5600Right);
+
+        currentAngle = (getAngle(as5600Right));
         zeroAngle = RIGHT_ZERO_POSITION;
         angleError = ((zeroAngle - currentAngle + 540) % 360) - 180;
 
@@ -136,12 +141,14 @@ public class Meet1Bot_ECM extends LinearOpMode {
         );
         rightTurn.setVelocity(TURN_VELOCITY);
 
-        while (leftTurn.isBusy() || rightTurn.isBusy()) {
+        while ((leftTurn.isBusy() || rightTurn.isBusy()) || !gamepad1.yWasPressed()) {
             telemetry.addLine("Aligning wheels...");
             telemetry.addData("Goal Position", RIGHT_ZERO_POSITION);
+            telemetry.addData("Actual Right Encoder Position", getAngle(as5600Right));
             telemetry.addLine("Right: " + rightTurn.getCurrentPosition());
             telemetry.addData("Goal Left Position", LEFT_ZERO_POSITION);
             telemetry.addLine("Left: " + leftTurn.getCurrentPosition());
+            telemetry.addData("Actual Left Encoder Position", getAngle(as5600Left));
             telemetry.update();
         }
 
@@ -260,7 +267,8 @@ public class Meet1Bot_ECM extends LinearOpMode {
             }
 
             double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
-            flywheel.setVelocity(targetTPS);
+            flywheelRight.setVelocity(targetTPS);
+            flywheelLeft.setPower(flywheelRight.getPower());
 
             /*
             if(gamepad1.xWasPressed()) {
@@ -285,12 +293,24 @@ public class Meet1Bot_ECM extends LinearOpMode {
                 rightTurn.setVelocity(0);
             }
 
-            double flyWheelVelocityToShow = (flywheel.getVelocity()*TICKS_PER_REV)*60;
+            double flyWheelVelocityToShow = (flywheelRight.getVelocity()*TICKS_PER_REV)*60;
             packet.put("Flywheel Velocity", flyWheelVelocityToShow );
             dashboard.sendTelemetryPacket(packet);
 
-            telemetry.addData("Flywheel actual RPM", (flywheel.getVelocity() / TICKS_PER_REV) * 60);
-            telemetry.addData("flywheel target RPM", targetRPM);
+            double degreesL = getAngle(as5600Left);
+            double rawAngleL = getRawAngle(as5600Left);
+            telemetry.addData("Raw Angle Left", rawAngleL);
+            telemetry.addData("Degrees Left", degreesL);
+            double degreesR = getAngle(as5600Right);
+            double rawAngleR = getRawAngle(as5600Right);
+            telemetry.addData("Raw Angle Right", rawAngleR);
+            telemetry.addData("Degrees Right", degreesR);
+            telemetry.addData("Left Turn Power", leftTurn.getPower());
+            telemetry.addData("Right Turn Power", rightTurn.getPower());
+            telemetry.addData("Left Drive Power", leftDrive.getPower());
+            telemetry.addData("Right Drive Power", rightDrive.getPower());
+            telemetry.addData("Flywheel actual RPM", (flywheelRight.getVelocity() / TICKS_PER_REV) * 60);
+            telemetry.addData("flywheelR target RPM", targetRPM);
             telemetry.update();
 
         }
@@ -305,6 +325,17 @@ public class Meet1Bot_ECM extends LinearOpMode {
         int rawAngle = ((high << 8) | low) & 0x0FFF;
         return rawAngle * 360.0 / 4096.0;
     }
+
+    private double getRawAngle(I2cDeviceSynch as5600){
+        byte[] angleBytes = as5600.read(ANGLE_REGISTER, 2);
+
+        int high = angleBytes[0] & 0xFF;
+        int low = angleBytes[1] & 0xFF;
+
+        int rawAngle = ((high << 8) | low) & 0x0FFF;
+        return rawAngle;
+    }
+
     private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
         double dir = (target % 360) - (current % 360);           //reduces encoder angle to a value between 0 and 359
         if (abs(dir) > 180.0) {                             //If the angle is > 180 degrees
