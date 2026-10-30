@@ -161,9 +161,9 @@ public class Meet1Bot_ECM extends LinearOpMode {
 
 
         while (opModeIsActive()) {
-            double lx = gamepad1.left_stick_x;
-            double ly = -gamepad1.left_stick_y;
-            double turn = gamepad1.right_stick_x;
+            double lx = -gamepad1.left_stick_x;
+            double ly = gamepad1.left_stick_y;
+            double turn = -gamepad1.right_stick_x;
 
             // 2. Define Rotation Vectors
             // For a 2-module robot to spin, one wheel points "up/left" and the other "up/right"
