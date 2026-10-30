@@ -39,8 +39,8 @@ public class Meet1Bot_ECM extends LinearOpMode {
     private static final int AS5600_ADDR = 0x36;
     private static final int ANGLE_REGISTER = 0x0E;
 
-    private static final double LEFT_ZERO_POSITION = 353;
-    private static final double RIGHT_ZERO_POSITION = 176;
+    private static final double LEFT_ZERO_POSITION = 352;
+    private static final double RIGHT_ZERO_POSITION = 340;
 
     private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(100,0.0, 0.0, 10);
     private boolean speedToggle = false;
