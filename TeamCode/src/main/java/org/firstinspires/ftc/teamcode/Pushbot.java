@@ -24,6 +24,7 @@ public class Pushbot extends LinearOpMode {
     private DcMotor leftMotor = null;
     private DcMotor rightMotor = null;
     private DcMotor flywheel = null;
+    private TurretMechanism turret = new TurretMechanism();
     ElapsedTime time = new ElapsedTime();
     private GoBildaPinpointDriver odo;
 
@@ -32,6 +33,7 @@ public class Pushbot extends LinearOpMode {
         leftMotor = hardwareMap.get(DcMotor.class, "left");
         rightMotor = hardwareMap.get(DcMotor.class, "right");
         flywheel = hardwareMap.get(DcMotor.class, "flywheel");
+        turret.init(hardwareMap);
         leftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
         odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
@@ -55,10 +57,12 @@ public class Pushbot extends LinearOpMode {
         waitForStart();
         while (opModeIsActive()) {
             odo.update();
+
             leftMotor.setPower(gamepad1.right_stick_y);
             rightMotor.setPower(gamepad1.left_stick_y);
             flywheel.setPower(flywheel.getPower() + ((gamepad1.dpadUpWasPressed() ? 1 : 0) * 0.05) - ((gamepad1.dpadDownWasPressed() ? 1 : 0) * 0.05));
             Pose2D pos = odo.getPosition();
+            turret.update(pos);
             double robotX = pos.getX(DistanceUnit.INCH);
             double robotY = pos.getY(DistanceUnit.INCH);
             double robotHeading = pos.getHeading(AngleUnit.DEGREES);
@@ -70,7 +74,7 @@ public class Pushbot extends LinearOpMode {
             fieldOverlay.setStrokeWidth(1);
 
             // Draw robot perimeter (Assume a typical 18x18 inch robot frame)
-            fieldOverlay.strokeCircle(robotX, robotY, 9);
+            fieldOverlay.strokeRect(robotX-9, robotY-9, 18, 18);
 
             // Draw a line indicating which direction the front of the robot is facing
             double vectorLength = 12.0; // 12-inch pointer line
