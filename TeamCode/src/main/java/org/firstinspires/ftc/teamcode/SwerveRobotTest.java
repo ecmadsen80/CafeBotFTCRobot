@@ -9,11 +9,11 @@ public class SwerveRobotTest extends LinearOpMode {
     private SwerveRobot robot = new SwerveRobot();
     @Override
     public void runOpMode() {
-        robot.init(hardwareMap);
+        robot.init(hardwareMap, telemetry);
 
         waitForStart();
 
-        robot.zeroPods(354.375, 173.32);
+        robot.zeroPods(352.375, 340);
 
         while (opModeIsActive()) {
             robot.driveGamepad(gamepad1.left_stick_x, gamepad1.left_stick_y, gamepad1.right_stick_x);

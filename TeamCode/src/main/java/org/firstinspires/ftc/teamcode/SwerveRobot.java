@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
 
 import static java.lang.Math.abs;
 
@@ -10,6 +9,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
@@ -21,12 +21,13 @@ public class SwerveRobot {
     private GoBildaPinpointDriver odo;
     private ElapsedTime time = new ElapsedTime();
     static final double GOBILDA_ENCODER_TICKS = 751.8;
+    private Telemetry telemetry;
 
-    public void init(HardwareMap hw) {
+    public void init(HardwareMap hw, Telemetry t) {
         podLeft.init(hw, "left_turn", "left_drive", "as5600Left");
         podRight.init(hw, "right_turn", "right_drive", "as5600Right");
         intake.init(hw);
-
+        telemetry = t;
         odo = hw.get(GoBildaPinpointDriver.class, "odo");
 
         odo.setOffsets(170, 170, DistanceUnit.MM); //these are tuned for 3110-0002-0001 Product Insight #1
@@ -64,6 +65,8 @@ public class SwerveRobot {
     }
 
     public void driveGamepad(double lx, double ly, double turn) {
+        lx *= -1;
+        turn *= -1;
         double leftRotationX = 0;   // Vertical component of rotation for left pod
         double leftRotationY = turn;
         double rightRotationX = 0;
