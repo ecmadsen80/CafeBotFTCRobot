@@ -141,7 +141,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
         );
         rightTurn.setVelocity(TURN_VELOCITY);
 
-        while ((leftTurn.isBusy() || rightTurn.isBusy()) || !gamepad1.yWasPressed()) {
+        while ((leftTurn.isBusy() || rightTurn.isBusy())) { //|| !gamepad1.yWasPressed()) { this bit of code halts the program until y is pushed. Was there for troubleshooting
             telemetry.addLine("Aligning wheels...");
             telemetry.addData("Goal Position", RIGHT_ZERO_POSITION);
             telemetry.addData("Actual Right Encoder Position", getAngle(as5600Right));
@@ -232,6 +232,9 @@ public class Meet1Bot_ECM extends LinearOpMode {
                 speedToggle = !speedToggle; // Switches true to false or false to true
             }
 
+
+
+
             // Determine the speed multiplier based on the toggle state
             double speedLimit = speedToggle ? 0.5 : 1.0;
 
@@ -263,6 +266,13 @@ public class Meet1Bot_ECM extends LinearOpMode {
             }
 
             if (gamepad1.aWasPressed()) {
+                targetRPM = 0;
+            }
+
+            if (gamepad1.rightBumperWasPressed()) {
+                targetRPM = 2550;
+            }
+            if (gamepad1.leftBumperWasPressed()) {
                 targetRPM = 0;
             }
 

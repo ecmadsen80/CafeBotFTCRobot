@@ -91,7 +91,7 @@ public class TurretMechanismOpmode extends OpMode {
     public void loop() {
         LLResult result = limelight.getLatestResult();
 
-        turret.update(result);
+        //turret.update(result);
 
         if (result != null && result.isValid()) {
             telemetry.addData("Limelight", "sees tag");
