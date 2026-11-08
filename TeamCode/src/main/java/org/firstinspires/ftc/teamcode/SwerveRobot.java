@@ -54,7 +54,15 @@ public class SwerveRobot {
         podRight.zero(rightZero);
         telemetry.addLine("Aligning motors...");
         telemetry.update();
-        while (podLeft.isBusy() || podRight.isBusy()) {}
+        while (podLeft.isBusy() || podRight.isBusy()) {
+            telemetry.addLine("Aligning wheels...");
+            telemetry.addData("Goal Position", rightZero);
+            telemetry.addData("Actual Right Encoder Position", podRight.getEncoderAngle());
+            telemetry.addLine("Right: " + podLeft.getMotorAngle());
+            telemetry.addData("Goal Left Position", leftZero);
+            telemetry.addLine("Left: " + podLeft.getMotorAngle());
+            telemetry.addData("Actual Left Encoder Position", podLeft.getEncoderAngle());
+            telemetry.update();}
         podLeft.calibrate();
         podRight.calibrate();
     }

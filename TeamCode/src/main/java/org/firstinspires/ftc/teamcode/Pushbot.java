@@ -34,7 +34,7 @@ public class Pushbot extends LinearOpMode {
         rightMotor = hardwareMap.get(DcMotor.class, "right");
         flywheel = hardwareMap.get(DcMotor.class, "flywheel");
         turret.init(hardwareMap);
-        leftMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
         odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
 
@@ -52,9 +52,10 @@ public class Pushbot extends LinearOpMode {
         odo.update();
 
 
-        odo.setPosition(new Pose2D(DistanceUnit.INCH, -54, 48, AngleUnit.DEGREES, 180));
+        odo.setPosition(new Pose2D(DistanceUnit.INCH, -54, -48, AngleUnit.DEGREES, 0));
         odo.update();
         waitForStart();
+
         while (opModeIsActive()) {
             odo.update();
 
@@ -62,7 +63,9 @@ public class Pushbot extends LinearOpMode {
             rightMotor.setPower(gamepad1.left_stick_y);
             flywheel.setPower(flywheel.getPower() + ((gamepad1.dpadUpWasPressed() ? 1 : 0) * 0.05) - ((gamepad1.dpadDownWasPressed() ? 1 : 0) * 0.05));
             Pose2D pos = odo.getPosition();
-            turret.update(pos);
+            double turretAngle = turret.update(pos);
+
+            telemetry.addData("TurretAngle", turretAngle);
             double robotX = pos.getX(DistanceUnit.INCH);
             double robotY = pos.getY(DistanceUnit.INCH);
             double robotHeading = pos.getHeading(AngleUnit.DEGREES);
@@ -75,12 +78,28 @@ public class Pushbot extends LinearOpMode {
 
             // Draw robot perimeter (Assume a typical 18x18 inch robot frame)
             fieldOverlay.strokeRect(robotX-9, robotY-9, 18, 18);
+            fieldOverlay.strokeRect(48-5, 60-5, 10, 10);
 
             // Draw a line indicating which direction the front of the robot is facing
             double vectorLength = 12.0; // 12-inch pointer line
-            double frontX = robotX + Math.cos(Math.toRadians(robotHeading)) * vectorLength;
-            double frontY = robotY + Math.sin(Math.toRadians(robotHeading)) * vectorLength;
+            // Robot heading
+            double headingRad = Math.toRadians(robotHeading);
+
+            double frontX = robotX + Math.cos(headingRad) * 12;
+            double frontY = robotY - Math.sin(headingRad) * 12;
+
+// Turret field-relative heading
+            double turretFieldAngle = turretAngle + robotHeading;
+            double turretRad = Math.toRadians(turretFieldAngle);
+
+            double turretX = robotX + Math.cos(turretRad) * 5;
+            double turretY = robotY - Math.sin(turretRad) * 5;
+
             fieldOverlay.strokeLine(robotX, robotY, frontX, frontY);
+
+            fieldOverlay.setStroke("orange");
+            fieldOverlay.strokeLine(robotX, robotY, turretX, turretY);
+
 
             // 5. Send numerical coordinates text alongside the visual canvas map
             packet.put("Field Position X (in)", robotX);

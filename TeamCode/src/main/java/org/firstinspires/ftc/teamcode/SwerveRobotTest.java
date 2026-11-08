@@ -13,7 +13,7 @@ public class SwerveRobotTest extends LinearOpMode {
 
         waitForStart();
 
-        robot.zeroPods(352.375, 340);
+        robot.zeroPods(352, 340);
 
         while (opModeIsActive()) {
             robot.driveGamepad(gamepad1.left_stick_x, gamepad1.left_stick_y, gamepad1.right_stick_x);
