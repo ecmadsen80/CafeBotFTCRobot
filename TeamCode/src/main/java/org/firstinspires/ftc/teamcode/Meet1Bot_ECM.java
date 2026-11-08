@@ -270,10 +270,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
             }
 
             if (gamepad1.rightBumperWasPressed()) {
-                targetRPM = 2550;
-            }
-            if (gamepad1.leftBumperWasPressed()) {
-                targetRPM = 0;
+                targetRPM = 2500;
             }
 
             double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
@@ -285,11 +282,13 @@ public class Meet1Bot_ECM extends LinearOpMode {
                 gateOpen = !gateOpen;
                 gate.setPosition(gateOpen ? 1.0 : 0.0);
             }
+            Missed: 4
+            Made  : 13
             */
 
             if (gamepad1.x) {
                 gate.setPosition(1.0);
-                intakePower = (intakePower*0.5);
+                intakePower = (intakePower*0.4);
             }
             else {
                 gate.setPosition(0.0);

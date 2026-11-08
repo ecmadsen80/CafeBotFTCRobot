@@ -30,15 +30,16 @@ public class SwervePod {
 
     public boolean isBusy() {return turn.isBusy(); }
     public void setDrive(double power) {
-        drive.setPower(0.0);
+        drive.setPower(power);
     }
     public void calibrate() {
         turn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         drive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         turn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        drive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         turn.setTargetPosition(0);
         turn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        turn.setVelocity(2500);
     }
 
     public void setAngle(int ticks) {

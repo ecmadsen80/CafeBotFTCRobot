@@ -5,7 +5,13 @@ import static java.lang.Math.abs;
 
 import java.lang.Math;
 
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
@@ -18,17 +24,35 @@ public class SwerveRobot {
     private SwervePod podLeft = new SwervePod();
     private SwervePod podRight = new SwervePod();
     private Intake intake = new Intake();
+    private DcMotorEx flywheelRight = null;
+    private DcMotorEx flywheelLeft = null;
+    private Servo gate;
     private GoBildaPinpointDriver odo;
     private ElapsedTime time = new ElapsedTime();
     static final double GOBILDA_ENCODER_TICKS = 751.8;
     private Telemetry telemetry;
+    private int targetRPM = 0;
+    private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(100,0.0, 0.0, 10);
+
+    static final double TICKS_PER_REV = 28;
 
     public void init(HardwareMap hw, Telemetry t) {
+        flywheelRight = hw.get(DcMotorEx.class, "flywheelRight");
+        flywheelLeft = hw.get(DcMotorEx.class, "flywheelLeft");
         podLeft.init(hw, "left_turn", "left_drive", "as5600Left");
         podRight.init(hw, "right_turn", "right_drive", "as5600Right");
         intake.init(hw);
+        gate = hw.get(Servo.class, "gate");
+        gate.setPosition(0.0);
         telemetry = t;
         odo = hw.get(GoBildaPinpointDriver.class, "odo");
+
+        flywheelRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flywheelRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        flywheelLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheelLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flywheelLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        flywheelRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
 
         odo.setOffsets(170, 170, DistanceUnit.MM); //these are tuned for 3110-0002-0001 Product Insight #1
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD);
@@ -53,6 +77,7 @@ public class SwerveRobot {
         podLeft.zero(leftZero);
         podRight.zero(rightZero);
         telemetry.addLine("Aligning motors...");
+        time.reset();
         telemetry.update();
         while (podLeft.isBusy() || podRight.isBusy()) {
             telemetry.addLine("Aligning wheels...");
@@ -62,7 +87,8 @@ public class SwerveRobot {
             telemetry.addData("Goal Left Position", leftZero);
             telemetry.addLine("Left: " + podLeft.getMotorAngle());
             telemetry.addData("Actual Left Encoder Position", podLeft.getEncoderAngle());
-            telemetry.update();}
+            telemetry.update();
+        }
         podLeft.calibrate();
         podRight.calibrate();
     }
@@ -123,12 +149,48 @@ public class SwerveRobot {
         double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
 
         podLeft.setAngle((int)((moveLeft / 360.0) * GOBILDA_ENCODER_TICKS));
-        podLeft.setAngle((int)((moveRight / 360.0) * GOBILDA_ENCODER_TICKS));
+        podRight.setAngle((int)((moveRight / 360.0) * GOBILDA_ENCODER_TICKS));
 
+
+        // 8. Apply Final Drive Power
+        // Normalize magnitudes if they exceed 1.0
         double maxMag = Math.max(1.0, Math.max(magLeft, magRight));
+
+        // Determine the speed multiplier based on the toggle state
         double speedLimit = 1.0;
+
+        // Motor power combination of left and right sides and fast/slow state
+        telemetry.addData("Motor stuff", Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
         podLeft.setDrive(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
         podRight.setDrive(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
+    }
+
+    public void handleFlywheel(Gamepad gamepad1) {
+        if (gamepad1.dpadUpWasPressed()) {
+            targetRPM += 25;
+        }
+        if (gamepad1.dpadDownWasPressed()) {
+            targetRPM -= 25;
+        }
+
+        if (gamepad1.dpadRightWasPressed()) {
+            targetRPM += 250;
+        }
+        if (gamepad1.dpadLeftWasPressed()) {
+            targetRPM -= 250;
+        }
+
+        if (gamepad1.aWasPressed()) {
+            targetRPM = 0;
+        }
+
+        if (gamepad1.rightBumperWasPressed()) {
+            targetRPM = 2550;
+        }
+
+        double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
+        flywheelRight.setVelocity(targetTPS);
+        flywheelLeft.setPower(flywheelRight.getPower());
     }
 
     private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
@@ -137,5 +199,12 @@ public class SwerveRobot {
             dir = -(Math.signum(dir) * 360.0) + dir;            //subtracts the angle from 360
         }
         return dir;
+    }
+
+    public void setGate(double pos) {
+        gate.setPosition(pos);
+    }
+    public void setIntakePower(double pow) {
+        intake.setPower(pow);
     }
 }
