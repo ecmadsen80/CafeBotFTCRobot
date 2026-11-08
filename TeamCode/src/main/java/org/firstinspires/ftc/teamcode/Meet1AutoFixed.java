@@ -169,9 +169,9 @@ public class Meet1AutoFixed extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-        while (time.time() < 10) {
+        while (time.time() < 13) {
 
-            double targetTPS = ((2550) / 60.0) * TICKS_PER_REV;
+            double targetTPS = ((2500) / 60.0) * TICKS_PER_REV;
             flywheelRight.setVelocity(targetTPS);
             flywheelLeft.setPower(flywheelRight.getPower());
 
@@ -184,7 +184,7 @@ public class Meet1AutoFixed extends LinearOpMode {
             }
         }
 
-        while (time.time() > 10 && time.time() < 13) {
+        while (time.time() > 13 && time.time() < 12) {
             flywheelRight.setVelocity(0);
             flywheelLeft.setPower(0);
 
