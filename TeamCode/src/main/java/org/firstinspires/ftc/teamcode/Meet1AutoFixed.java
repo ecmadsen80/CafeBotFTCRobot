@@ -169,11 +169,79 @@ public class Meet1AutoFixed extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-        while (time.time() < 10) {
-
             double targetTPS = ((2550) / 60.0) * TICKS_PER_REV;
-            flywheelRight.setVelocity(targetTPS);
-            flywheelLeft.setPower(flywheelRight.getPower());
+            while (time.time() < 0.2) {
+                lx = 0;
+                ly = 0.5; // Drive forward along Y axis
+                turn = 0;
+
+                double leftRotationX = 0;
+                double leftRotationY = turn;
+                double rightRotationX = 0;
+                double rightRotationY = -turn;
+
+                double combinedLeftX = lx + leftRotationX;
+                double combinedLeftY = ly + leftRotationY;
+                double combinedRightX = lx + rightRotationX;
+                double combinedRightY = ly + rightRotationY;
+
+                double magLeft = Math.hypot(combinedLeftX, combinedLeftY);
+                double magRight = Math.hypot(combinedRightX, combinedRightY);
+
+                double targetAngleLeft = Math.toDegrees(Math.atan2(combinedLeftX, combinedLeftY));
+                double targetAngleRight = Math.toDegrees(Math.atan2(combinedRightX, combinedRightY));
+
+                if (targetAngleLeft < 0) targetAngleLeft += 360;
+                if (targetAngleRight < 0) targetAngleRight += 360;
+
+                int leftCurrentTicks = leftTurn.getCurrentPosition();
+                int rightCurrentTicks = rightTurn.getCurrentPosition();
+                int leftCurrentDegrees = (int) ((leftCurrentTicks / (double) GOBILDA_ENCODER_TICKS) * 360);
+                int rightCurrentDegrees = (int) ((rightCurrentTicks / (double) GOBILDA_ENCODER_TICKS) * 360);
+
+                double driveMultLeft = 1.0;
+                double diffLeft = closestAngle(targetAngleLeft, leftCurrentDegrees);
+                if (abs(diffLeft) > 90) {
+                    driveMultLeft = -1.0;
+                    targetAngleLeft = (targetAngleLeft + 180) % 360;
+                }
+
+                double driveMultRight = 1.0;
+                double diffRight = closestAngle(targetAngleRight, rightCurrentDegrees);
+                if (abs(diffRight) > 90) {
+                    driveMultRight = -1.0;
+                    targetAngleRight = (targetAngleRight + 180) % 360;
+                }
+
+                double moveLeft = closestAngle(targetAngleLeft, leftCurrentDegrees) + leftCurrentDegrees;
+                double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
+
+                leftTurn.setTargetPosition((int) ((moveLeft / 360.0) * GOBILDA_ENCODER_TICKS));
+                rightTurn.setTargetPosition((int) ((moveRight / 360.0) * GOBILDA_ENCODER_TICKS));
+
+                leftTurn.setVelocity(TURN_VELOCITY);
+                rightTurn.setVelocity(TURN_VELOCITY);
+
+                double maxMag = Math.max(1.0, Math.max(magLeft, magRight));
+                double speedLimit = 0.5;
+
+                leftDrive.setPower(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
+                rightDrive.setPower(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
+            }
+
+            // Stop the robot after 0.2 seconds
+            leftDrive.setPower(0);
+            rightDrive.setPower(0);
+            leftTurn.setVelocity(0);
+            rightTurn.setVelocity(0);
+
+            while (time.time() > 0.3 && time.time() < 2) {
+
+                flywheelRight.setVelocity(targetTPS);
+                flywheelLeft.setPower(flywheelRight.getPower());
+            }
+
+        while (time.time() > 2 && time.time() < 10) {
 
             if (abs(flywheelRight.getVelocity() - targetTPS) < 100) {
                 atSpeed = true;
@@ -184,7 +252,7 @@ public class Meet1AutoFixed extends LinearOpMode {
             }
         }
 
-        while (time.time() > 10 && time.time() < 13) {
+        while (time.time() > 10 && time.time() < 11.5) {
             flywheelRight.setVelocity(0);
             flywheelLeft.setPower(0);
 
@@ -267,6 +335,9 @@ public class Meet1AutoFixed extends LinearOpMode {
             packet.put("Flywheel Velocity", flyWheelVelocityToShow);
             dashboard.sendTelemetryPacket(packet);
 
+            /* AI said that this frequent I2C reads have the potential to lock up
+            the program if noisy reads or bus overload - will cause pauses in the program
+            waiting for I2C reads
             double degreesL = getAngle(as5600Left);
             double rawAngleL = getRawAngle(as5600Left);
             telemetry.addData("Raw Angle Left", rawAngleL);
@@ -275,6 +346,8 @@ public class Meet1AutoFixed extends LinearOpMode {
             double rawAngleR = getRawAngle(as5600Right);
             telemetry.addData("Raw Angle Right", rawAngleR);
             telemetry.addData("Degrees Right", degreesR);
+
+             */
             telemetry.addData("Left Turn Power", leftTurn.getPower());
             telemetry.addData("Right Turn Power", rightTurn.getPower());
             telemetry.addData("Left Drive Power", leftDrive.getPower());
