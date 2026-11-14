@@ -251,26 +251,26 @@ public class Meet1Bot_ECM extends LinearOpMode {
             }
 
 
-            if (gamepad1.dpadUpWasPressed()) {
+            if (gamepad2.dpadUpWasPressed()) {
                 targetRPM += 25;
             }
-            if (gamepad1.dpadDownWasPressed()) {
+            if (gamepad2.dpadDownWasPressed()) {
                 targetRPM -= 25;
             }
 
-            if (gamepad1.dpadRightWasPressed()) {
+            if (gamepad2.dpadRightWasPressed()) {
                 targetRPM += 250;
             }
-            if (gamepad1.dpadLeftWasPressed()) {
+            if (gamepad2.dpadLeftWasPressed()) {
                 targetRPM -= 250;
             }
 
-            if (gamepad1.aWasPressed()) {
+            if (gamepad2.aWasPressed()) {
                 targetRPM = 0;
             }
 
-            if (gamepad1.rightBumperWasPressed()) {
-                targetRPM = 2500;
+            if (gamepad2.rightBumperWasPressed()) {
+                targetRPM = 2575;
             }
 
             double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
