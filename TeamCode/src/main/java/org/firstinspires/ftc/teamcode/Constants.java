@@ -16,7 +16,6 @@ public class Constants {
     public static final double TURN_VELOCITY = 2500;
 
     public static final double FLYWHEEL_DEFAULT = 2575;
-    private static final double TURN_VELOCITY = 2500;
     private static final PIDFCoefficients FLYWHEEL_PIDF = new PIDFCoefficients(100, 0.0, 0.0, 10);
 
 }
