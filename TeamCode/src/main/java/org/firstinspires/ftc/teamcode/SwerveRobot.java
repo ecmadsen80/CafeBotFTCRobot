@@ -24,6 +24,7 @@ public class SwerveRobot {
     private SwervePod podLeft = new SwervePod();
     private SwervePod podRight = new SwervePod();
     private Intake intake = new Intake();
+
     private DcMotorEx flywheelRight = null;
     private DcMotorEx flywheelLeft = null;
     private Servo gate;
@@ -98,9 +99,10 @@ public class SwerveRobot {
         double changeY = amount * Math.sin(Math.toRadians(direction));
     }
 
-    public void driveGamepad(double lx, double ly, double turn) {
-        lx *= -1;
-        turn *= -1;
+    public void driveGamepad(Gamepad gamepad) {
+        double lx = -gamepad.left_stick_x;
+        double ly = gamepad.left_stick_y;
+        double turn = -gamepad.right_stick_x;
         double leftRotationX = 0;   // Vertical component of rotation for left pod
         double leftRotationY = turn;
         double rightRotationX = 0;
@@ -125,8 +127,8 @@ public class SwerveRobot {
         int leftCurrentTicks = podLeft.getMotorAngle();
         int rightCurrentTicks = podRight.getMotorAngle();
         // Convert to degrees
-        int leftCurrentDegrees = (int)((leftCurrentTicks / (double)GOBILDA_ENCODER_TICKS) * 360);
-        int rightCurrentDegrees = (int)((rightCurrentTicks / (double)GOBILDA_ENCODER_TICKS) * 360);
+        int leftCurrentDegrees = (int)(podLeft.getEncoderAngle() - Constants.LEFT_ZERO_POSITION + 360) % 360; //getEncoderAngle gives degrees, offset to the motor by 352 for left and 340 for right
+        int rightCurrentDegrees = (int)(podRight.getEncoderAngle() - Constants.RIGHT_ZERO_POSITION + 360) % 360;
 
         // 5. Optimization for LEFT Pod
         double driveMultLeft = 1.0;
@@ -148,7 +150,7 @@ public class SwerveRobot {
         double moveLeft = closestAngle(targetAngleLeft, leftCurrentDegrees) + leftCurrentDegrees;
         double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
 
-        podLeft.setAngle((int)((moveLeft / 360.0) * GOBILDA_ENCODER_TICKS));
+        podLeft.setAngle((int)((moveLeft / 360.0) * GOBILDA_ENCODER_TICKS)); //set angle needs motor ticks
         podRight.setAngle((int)((moveRight / 360.0) * GOBILDA_ENCODER_TICKS));
 
 
@@ -185,7 +187,7 @@ public class SwerveRobot {
         }
 
         if (gamepad1.rightBumperWasPressed()) {
-            targetRPM = 2550;
+            targetRPM = 2575;
         }
 
         double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
@@ -194,11 +196,7 @@ public class SwerveRobot {
     }
 
     private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
-        double dir = (target % 360) - (current % 360);           //reduces encoder angle to a value between 0 and 359
-        if (abs(dir) > 180.0) {                             //If the angle is > 180 degrees
-            dir = -(Math.signum(dir) * 360.0) + dir;            //subtracts the angle from 360
-        }
-        return dir;
+        return (target - current + 540) % 360 - 180;
     }
 
     public void setGate(double pos) {

@@ -251,26 +251,26 @@ public class Meet1Bot_ECM extends LinearOpMode {
             }
 
 
-            if (gamepad1.dpadUpWasPressed()) {
+            if (gamepad2.dpadUpWasPressed()) {
                 targetRPM += 25;
             }
-            if (gamepad1.dpadDownWasPressed()) {
+            if (gamepad2.dpadDownWasPressed()) {
                 targetRPM -= 25;
             }
 
-            if (gamepad1.dpadRightWasPressed()) {
+            if (gamepad2.dpadRightWasPressed()) {
                 targetRPM += 250;
             }
-            if (gamepad1.dpadLeftWasPressed()) {
+            if (gamepad2.dpadLeftWasPressed()) {
                 targetRPM -= 250;
             }
 
-            if (gamepad1.aWasPressed()) {
+            if (gamepad2.aWasPressed()) {
                 targetRPM = 0;
             }
 
-            if (gamepad1.rightBumperWasPressed()) {
-                targetRPM = 2500;
+            if (gamepad2.rightBumperWasPressed()) {
+                targetRPM = 2575;
             }
 
             double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
@@ -303,9 +303,14 @@ public class Meet1Bot_ECM extends LinearOpMode {
             }
 
             double flyWheelVelocityToShow = (flywheelRight.getVelocity()*TICKS_PER_REV)*60;
+            double batteryVoltage = batteryVoltageSensor.getVoltage();
             packet.put("Flywheel Velocity", flyWheelVelocityToShow );
+            packet.put("Battery Voltage", batteryVoltage);
             dashboard.sendTelemetryPacket(packet);
 
+            /* AI said that this frequent I2C reads have the potential to lock up
+            the program if noisy reads or bus overload - will cause pauses in the program
+            waiting for I2C reads
             double degreesL = getAngle(as5600Left);
             double rawAngleL = getRawAngle(as5600Left);
             telemetry.addData("Raw Angle Left", rawAngleL);
@@ -314,6 +319,8 @@ public class Meet1Bot_ECM extends LinearOpMode {
             double rawAngleR = getRawAngle(as5600Right);
             telemetry.addData("Raw Angle Right", rawAngleR);
             telemetry.addData("Degrees Right", degreesR);
+
+             */
             telemetry.addData("Left Turn Power", leftTurn.getPower());
             telemetry.addData("Right Turn Power", rightTurn.getPower());
             telemetry.addData("Left Drive Power", leftDrive.getPower());
