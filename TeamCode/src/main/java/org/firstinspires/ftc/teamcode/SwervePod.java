@@ -19,13 +19,25 @@ public class SwervePod {
 
     public void zero(double zeroAngle) {
         turn.setPower(1.0);
+
+
+        //Wheel alignment code
         double currentAngle = encoder.getAngle();
+
         double angleError = ((zeroAngle - currentAngle + 540) % 360) - 180;
-        int deltaTicks = (int) Math.round(angleError / 360.0 * 751.8);
+        int deltaTicks = (int) Math.round(angleError / 360.0 * Constants.GOBILDA_ENCODER_TICKS);
 
         turn.setTargetPosition(turn.getCurrentPosition() - deltaTicks);
+        turn.setVelocity(Constants.TURN_VELOCITY);
 
-        turn.setVelocity(2500);
+        while ((turn.isBusy())) { //|| !gamepad1.yWasPressed()) { this bit of code halts the program until y is pushed. Was there for troubleshooting
+
+        }
+
+        turn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turn.setTargetPosition(0);
+        turn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
     }
 
     public boolean isBusy() {return turn.isBusy(); }
@@ -33,6 +45,7 @@ public class SwervePod {
         drive.setPower(power);
     }
     public void calibrate() {
+
         turn.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         drive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         turn.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -40,6 +53,12 @@ public class SwervePod {
         turn.setTargetPosition(0);
         turn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         turn.setVelocity(2500);
+    }
+
+    public void resetTurn() {
+        turn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turn.setTargetPosition(0);
+        turn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
     }
 
     public void setAngle(int ticks) {

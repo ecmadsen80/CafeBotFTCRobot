@@ -17,7 +17,7 @@ public class AbsoluteEncoder {
     }
 
     public double getAngle() {
-        byte[] angleBytes = encoder.read(0x36, 2);
+        byte[] angleBytes = encoder.read(0x0E, 2);
 
         int high = angleBytes[0] & 0xFF;
         int low = angleBytes[1] & 0xFF;

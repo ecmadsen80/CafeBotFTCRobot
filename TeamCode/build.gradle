@@ -28,7 +28,7 @@ dependencies {
     implementation project(':FtcRobotController')
 
     implementation "org.solverslib:core:0.3.3" // add SolversLib core
-    implementation 'com.acmerobotics.dashboard:dashboard:0.4.16'
+    implementation 'com.acmerobotics.dashboard:dashboard:0.6.0'
 }
 repositories {
     maven {

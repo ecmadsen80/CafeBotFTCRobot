@@ -55,9 +55,9 @@ public class SwerveRobot {
         flywheelLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         flywheelRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
 
-        odo.setOffsets(170, 170, DistanceUnit.MM); //these are tuned for 3110-0002-0001 Product Insight #1
+        odo.setOffsets(16, -10, DistanceUnit.CM); //these are tuned for 3110-0002-0001 Product Insight #1
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD);
-        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.FORWARD);
+        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
         odo.resetPosAndIMU();
 
         time.reset();
@@ -67,7 +67,7 @@ public class SwerveRobot {
         odo.update();
 
 
-        odo.setPosition(new Pose2D(DistanceUnit.INCH, -54, 48, AngleUnit.DEGREES, 180)); // On blue side,
+        odo.setPosition(new Pose2D(DistanceUnit.INCH, 21, 63, AngleUnit.DEGREES, 90)); // On blue side,
         odo.update();
 
         telemetry.addData(">", "Robot Ready.  Press Play.");
@@ -75,23 +75,11 @@ public class SwerveRobot {
     }
 
     public void zeroPods(double leftZero, double rightZero) {
+        telemetry.addLine("Aligning motors...");
+        telemetry.update();
         podLeft.zero(leftZero);
         podRight.zero(rightZero);
-        telemetry.addLine("Aligning motors...");
-        time.reset();
-        telemetry.update();
-        while (podLeft.isBusy() || podRight.isBusy()) {
-            telemetry.addLine("Aligning wheels...");
-            telemetry.addData("Goal Position", rightZero);
-            telemetry.addData("Actual Right Encoder Position", podRight.getEncoderAngle());
-            telemetry.addLine("Right: " + podLeft.getMotorAngle());
-            telemetry.addData("Goal Left Position", leftZero);
-            telemetry.addLine("Left: " + podLeft.getMotorAngle());
-            telemetry.addData("Actual Left Encoder Position", podLeft.getEncoderAngle());
-            telemetry.update();
-        }
-        podLeft.calibrate();
-        podRight.calibrate();
+
     }
 
     public void driveAt(double direction, double amount, double speed) {
@@ -99,7 +87,19 @@ public class SwerveRobot {
         double changeY = amount * Math.sin(Math.toRadians(direction));
     }
 
+    public void logOdometry() {
+
+        telemetry.addData("Odo posX", odo.getPosX(DistanceUnit.INCH));
+        telemetry.addData("Odo posY", odo.getPosY(DistanceUnit.INCH));
+        telemetry.addData("Odo heading", odo.getHeading(AngleUnit.DEGREES));
+    }
+    public Pose2D getPosition() {
+        return odo.getPosition();
+    }
+
+
     public void driveGamepad(Gamepad gamepad) {
+        odo.update();
         double lx = -gamepad.left_stick_x;
         double ly = gamepad.left_stick_y;
         double turn = -gamepad.right_stick_x;
@@ -127,8 +127,8 @@ public class SwerveRobot {
         int leftCurrentTicks = podLeft.getMotorAngle();
         int rightCurrentTicks = podRight.getMotorAngle();
         // Convert to degrees
-        int leftCurrentDegrees = (int)(podLeft.getEncoderAngle() - Constants.LEFT_ZERO_POSITION + 360) % 360; //getEncoderAngle gives degrees, offset to the motor by 352 for left and 340 for right
-        int rightCurrentDegrees = (int)(podRight.getEncoderAngle() - Constants.RIGHT_ZERO_POSITION + 360) % 360;
+        int leftCurrentDegrees = (int)((leftCurrentTicks / (double)GOBILDA_ENCODER_TICKS) * 360);
+        int rightCurrentDegrees = (int)((rightCurrentTicks / (double)GOBILDA_ENCODER_TICKS) * 360);
 
         // 5. Optimization for LEFT Pod
         double driveMultLeft = 1.0;

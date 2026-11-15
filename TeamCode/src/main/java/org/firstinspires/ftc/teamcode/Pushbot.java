@@ -62,20 +62,17 @@ public class Pushbot extends LinearOpMode {
             leftMotor.setPower(gamepad1.right_stick_y);
             rightMotor.setPower(gamepad1.left_stick_y);
             flywheel.setPower(flywheel.getPower() + ((gamepad1.dpadUpWasPressed() ? 1 : 0) * 0.05) - ((gamepad1.dpadDownWasPressed() ? 1 : 0) * 0.05));
+
             Pose2D pos = odo.getPosition();
             double turretAngle = turret.update(pos);
-
-            telemetry.addData("TurretAngle", turretAngle);
             double robotX = pos.getX(DistanceUnit.INCH);
             double robotY = pos.getY(DistanceUnit.INCH);
             double robotHeading = pos.getHeading(AngleUnit.DEGREES);
             TelemetryPacket packet = new TelemetryPacket();
             Canvas fieldOverlay = packet.fieldOverlay(); // Get the field drawing layer
-
             // 4. DRAW THE ROBOT: A circle for the body, a line pointing to its heading
             fieldOverlay.setStroke("blue");
             fieldOverlay.setStrokeWidth(1);
-
             // Draw robot perimeter (Assume a typical 18x18 inch robot frame)
             fieldOverlay.strokeRect(robotX-9, robotY-9, 18, 18);
             fieldOverlay.strokeRect(48-5, 60-5, 10, 10);
