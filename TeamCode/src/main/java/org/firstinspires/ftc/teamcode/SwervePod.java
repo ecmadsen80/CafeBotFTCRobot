@@ -52,7 +52,7 @@ public class SwervePod {
         turn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         turn.setTargetPosition(0);
         turn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        turn.setVelocity(2500);
+        turn.setVelocity(Constants.TURN_VELOCITY);
     }
 
     public void resetTurn() {

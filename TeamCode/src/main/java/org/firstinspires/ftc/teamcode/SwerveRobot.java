@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 
+import static java.lang.Math.PI;
 import static java.lang.Math.abs;
 
 import java.lang.Math;
@@ -30,12 +31,10 @@ public class SwerveRobot {
     private Servo gate;
     private GoBildaPinpointDriver odo;
     private ElapsedTime time = new ElapsedTime();
-    static final double GOBILDA_ENCODER_TICKS = 751.8;
     private Telemetry telemetry;
     private int targetRPM = 0;
     private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(100,0.0, 0.0, 10);
 
-    static final double TICKS_PER_REV = 28;
 
     public void init(HardwareMap hw, Telemetry t) {
         flywheelRight = hw.get(DcMotorEx.class, "flywheelRight");
@@ -81,10 +80,47 @@ public class SwerveRobot {
         podRight.zero(rightZero);
 
     }
+    //======================================================================//
+    // ALL CODE IN driveAt IS THEORETICAL AND SHOULD BE TESTED BEFORE A MEET//
+    //======================================================================//
+    //***ONLY TO BE USED IN AUTO***//
 
-    public void driveAt(double direction, double amount, double speed) {
-        double changeX = amount * Math.cos(Math.toRadians(direction));
-        double changeY = amount * Math.sin(Math.toRadians(direction));
+
+    public void driveAt(double targetAngle, double amount, double speed) {
+
+        int leftCurrentTicks = podLeft.getMotorAngle();
+        int rightCurrentTicks = podRight.getMotorAngle();
+        // Convert to degrees
+        int leftCurrentDegrees = (int)((leftCurrentTicks / (double)Constants.GOBILDA_ENCODER_TICKS) * 360);
+        int rightCurrentDegrees = (int)((rightCurrentTicks / (double)Constants.GOBILDA_ENCODER_TICKS) * 360);
+
+        double diffLeft = closestAngle(targetAngle, leftCurrentDegrees); //here closest angle for turning the wheel is calculated
+        if (abs(diffLeft) > 90) {                                               //reverses the direction of the motor using "driveMultLeft"
+            targetAngle = (targetAngle + 180) % 360;                 //adjusts the angle to the opposite angle
+        }
+
+        // 6. Optimization for RIGHT Pod
+        double diffRight = closestAngle(targetAngle, rightCurrentDegrees);
+        if (abs(diffRight) > 90) {
+            targetAngle = (targetAngle + 180) % 360;
+        }
+
+        // 7. Calculate Final Motor Targets
+        double moveLeft = closestAngle(targetAngle, leftCurrentDegrees) + leftCurrentDegrees;
+        double moveRight = closestAngle(targetAngle, rightCurrentDegrees) + rightCurrentDegrees;
+
+        podLeft.setAngle((int)((moveLeft / 360.0) * Constants.GOBILDA_ENCODER_TICKS)); //set angle needs motor ticks
+        podRight.setAngle((int)((moveRight / 360.0) * Constants.GOBILDA_ENCODER_TICKS));
+        podLeft.setDrive(speed);
+        podRight.setDrive(speed);
+        double robotStartX = odo.getPosX(DistanceUnit.INCH);
+        double robotStartY = odo.getPosY(DistanceUnit.INCH);
+        while (Math.hypot(robotStartX-odo.getPosX(DistanceUnit.INCH), robotStartY - odo.getPosY(DistanceUnit.INCH)) < amount) {
+
+        }
+        podLeft.setDrive(0);
+        podRight.setDrive(0);
+
     }
 
     public void logOdometry() {
@@ -127,8 +163,8 @@ public class SwerveRobot {
         int leftCurrentTicks = podLeft.getMotorAngle();
         int rightCurrentTicks = podRight.getMotorAngle();
         // Convert to degrees
-        int leftCurrentDegrees = (int)((leftCurrentTicks / (double)GOBILDA_ENCODER_TICKS) * 360);
-        int rightCurrentDegrees = (int)((rightCurrentTicks / (double)GOBILDA_ENCODER_TICKS) * 360);
+        int leftCurrentDegrees = (int)((leftCurrentTicks / (double)Constants.GOBILDA_ENCODER_TICKS) * 360);
+        int rightCurrentDegrees = (int)((rightCurrentTicks / (double)Constants.GOBILDA_ENCODER_TICKS) * 360);
 
         // 5. Optimization for LEFT Pod
         double driveMultLeft = 1.0;
@@ -150,8 +186,8 @@ public class SwerveRobot {
         double moveLeft = closestAngle(targetAngleLeft, leftCurrentDegrees) + leftCurrentDegrees;
         double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
 
-        podLeft.setAngle((int)((moveLeft / 360.0) * GOBILDA_ENCODER_TICKS)); //set angle needs motor ticks
-        podRight.setAngle((int)((moveRight / 360.0) * GOBILDA_ENCODER_TICKS));
+        podLeft.setAngle((int)((moveLeft / 360.0) * Constants.GOBILDA_ENCODER_TICKS)); //set angle needs motor ticks
+        podRight.setAngle((int)((moveRight / 360.0) * Constants.GOBILDA_ENCODER_TICKS));
 
 
         // 8. Apply Final Drive Power
@@ -187,10 +223,10 @@ public class SwerveRobot {
         }
 
         if (gamepad1.rightBumperWasPressed()) {
-            targetRPM = 2575;
+            targetRPM = (int)Constants.FLYWHEEL_DEFAULT;
         }
 
-        double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
+        double targetTPS = ((targetRPM) / 60.0) * Constants.TICKS_PER_REV;
         flywheelRight.setVelocity(targetTPS);
         flywheelLeft.setPower(flywheelRight.getPower());
     }

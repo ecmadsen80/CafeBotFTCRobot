@@ -12,12 +12,12 @@ public class AbsoluteEncoder {
     public void init(HardwareMap hw, String name) {
         dummy = hw.get(Rev2mDistanceSensor.class, name);
         encoder = dummy.getDeviceClient();
-        encoder.setI2cAddress(I2cAddr.create7bit(0x36));
+        encoder.setI2cAddress(I2cAddr.create7bit(Constants.AS5600_ADDR));
         encoder.engage();
     }
 
     public double getAngle() {
-        byte[] angleBytes = encoder.read(0x0E, 2);
+        byte[] angleBytes = encoder.read(Constants.ANGLE_REGISTER, 2);
 
         int high = angleBytes[0] & 0xFF;
         int low = angleBytes[1] & 0xFF;
