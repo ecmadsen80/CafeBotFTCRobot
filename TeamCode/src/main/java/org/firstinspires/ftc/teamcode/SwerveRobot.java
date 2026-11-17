@@ -123,6 +123,20 @@ public class SwerveRobot {
 
     }
 
+    //driveTo code is also theoretical and should be tested before a meet.
+    //There are no failsafes in either driveTo or driveAt, meaning that if the robot hits a wall or is stalled in
+    //any other way there is no way to recover the robot and continue program operation.
+
+    public void driveTo(Pose2D to, double speed) {
+        double toX = to.getX(DistanceUnit.INCH);
+        double toY = to.getY(DistanceUnit.INCH);
+        double dx = toX-odo.getPosX(DistanceUnit.INCH);
+        double dy = toY-odo.getPosY(DistanceUnit.INCH);
+        double distance = Math.hypot(dx, dy);
+        double angle = Math.toDegrees(Math.atan2(dx, dy));
+        driveAt(angle, distance, speed);
+    }
+
     public void logOdometry() {
 
         telemetry.addData("Odo posX", odo.getPosX(DistanceUnit.INCH));
