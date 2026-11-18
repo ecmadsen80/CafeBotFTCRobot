@@ -32,6 +32,8 @@ public class Meet1Bot_ECM extends LinearOpMode {
     static final double TURN_VELOCITY = 2500; //i set to 1000 to move slower
     static final double DEADZONE = 0.2;
     static final double TICKS_PER_REV = 28;
+    double intakeRPM = 0;
+    double intakeTargetTPS = ((intakeRPM) / 60.0) * TICKS_PER_REV;
 
     private I2cDeviceSynch as5600Left;
     private I2cDeviceSynch as5600Right;
@@ -42,7 +44,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
     private static final double LEFT_ZERO_POSITION = 352;
     private static final double RIGHT_ZERO_POSITION = 340;
 
-    private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(100,0.0, 0.0, 10);
+    private PIDFCoefficients pidfFullWeight = new PIDFCoefficients(50,0.0, 0.0, 11);
     private boolean speedToggle = false;
     private boolean gateOpen = false;
     private double targetRPM = 0;
@@ -99,6 +101,11 @@ public class Meet1Bot_ECM extends LinearOpMode {
         flywheelLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheelLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         flywheelRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
+
+        intake.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        intake.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+
 
         gate.setPosition(0); //down
 
@@ -242,12 +249,15 @@ public class Meet1Bot_ECM extends LinearOpMode {
             leftDrive.setPower(Range.clip((magLeft / maxMag) * driveMultLeft * speedLimit, -speedLimit, speedLimit));
             rightDrive.setPower(Range.clip((magRight / maxMag) * driveMultRight * speedLimit, -speedLimit, speedLimit));
 
-            double intakePower = 0;
+            intakeRPM = 0;
+            intakeTargetTPS = 0;
             if (gamepad1.right_trigger > 0) {
-                intakePower -= 1.0;
+                intakeRPM = -5000;
+                intakeTargetTPS = ((intakeRPM) / 60.0) * TICKS_PER_REV;
             }
             if (gamepad1.left_trigger > 0) {
-                intakePower += 1.0;
+                intakeRPM = 5000;
+                intakeTargetTPS = ((intakeRPM) / 60.0) * TICKS_PER_REV;
             }
 
 
@@ -270,7 +280,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
             }
 
             if (gamepad2.rightBumperWasPressed()) {
-                targetRPM = 2575;
+                targetRPM = 2500;
             }
 
             double targetTPS = ((targetRPM) / 60.0) * TICKS_PER_REV;
@@ -288,12 +298,13 @@ public class Meet1Bot_ECM extends LinearOpMode {
 
             if (gamepad1.x) {
                 gate.setPosition(1.0);
-                intakePower = (intakePower*0.4);
+                intakeTargetTPS = ((intakeRPM*0.2) / 60.0) * TICKS_PER_REV;
+                intake.setVelocity(intakeTargetTPS);
             }
             else {
                 gate.setPosition(0.0);
             }
-            intake.setPower(intakePower);
+            intake.setVelocity(intakeTargetTPS);
             // Deadzone ]
             if (magLeft < DEADZONE && magRight < DEADZONE) {
                 leftDrive.setPower(0);
@@ -302,7 +313,7 @@ public class Meet1Bot_ECM extends LinearOpMode {
                 rightTurn.setVelocity(0);
             }
 
-            double flyWheelVelocityToShow = (flywheelRight.getVelocity()*TICKS_PER_REV)*60;
+            double flyWheelVelocityToShow = ((flywheelRight.getVelocity()/TICKS_PER_REV))*60;
             double batteryVoltage = batteryVoltageSensor.getVoltage();
             packet.put("Flywheel Velocity", flyWheelVelocityToShow );
             packet.put("Battery Voltage", batteryVoltage);

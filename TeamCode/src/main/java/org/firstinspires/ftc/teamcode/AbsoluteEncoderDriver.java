@@ -1,3 +1,4 @@
+/*
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.lynx.LynxI2cDeviceSynch;
@@ -47,5 +48,7 @@ public class AbsoluteEncoderDriver extends I2cDeviceSynchDevice<I2cDeviceSynchSi
     return (ticks * 360) / 4096.0;
   }
 
-  public void update() {
-    
+  //public void update() {}
+
+
+ */
