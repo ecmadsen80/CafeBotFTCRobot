@@ -1,7 +1,9 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+@TeleOp(group = "BIOBUZZ", name = "Encoder driver testing")
 public class AbsoluteEncoderDriverTest extends LinearOpMode {
     AbsoluteEncoderDriver encLeft = null;
     AbsoluteEncoderDriver encRight = null;
