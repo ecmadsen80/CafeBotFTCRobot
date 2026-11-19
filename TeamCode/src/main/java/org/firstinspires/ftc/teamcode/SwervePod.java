@@ -8,12 +8,12 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 public class SwervePod {
     private DcMotorEx turn;
     private DcMotor drive;
-    private AbsoluteEncoder encoder = new AbsoluteEncoder();
+    private AbsoluteEncoderDriver encoder;
 
     public void init(HardwareMap hw, String t, String d, String e) {
         turn = hw.get(DcMotorEx.class, t);
         drive = hw.get(DcMotor.class, d);
-        encoder.init(hw, e);
+        enc = hw.get(AbsoluteEncoderDriver.class, e);
         calibrate();
     }
 
@@ -22,6 +22,7 @@ public class SwervePod {
 
 
         //Wheel alignment code
+        encoder.update();
         double currentAngle = encoder.getAngle();
 
         double angleError = ((zeroAngle - currentAngle + 540) % 360) - 180;
@@ -66,6 +67,7 @@ public class SwervePod {
     }
 
     public double getEncoderAngle() {
+        encoder.update();
         return encoder.getAngle();
     }
 
