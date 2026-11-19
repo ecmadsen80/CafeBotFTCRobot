@@ -39,7 +39,7 @@ public class AbsoluteEncoderDriver extends I2cDeviceSynchDevice<I2cDeviceSynchSi
     return "Adafruit AS5600 Absolute Encoder";
   }
 
-  public double getTicks() {
+  public int getTicks() {
     return ticks;
   }
 

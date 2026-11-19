@@ -14,7 +14,10 @@ public class AbsoluteEncoderDriverTest extends LinearOpMode {
 
         waitForStart();
 
+
         while (opModeIsActive()) {
+            encLeft.update();
+            encRight.update();
             telemetry.addData("Left ticks: ", encLeft.getTicks());
             telemetry.addData("Right ticks: ", encRight.getTicks());
             telemetry.update();
