@@ -17,6 +17,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -30,6 +31,8 @@ public class SwerveRobot {
 
     private DcMotorEx flywheelRight = null;
     private DcMotorEx flywheelLeft = null;
+    private VoltageSensor batteryVoltageSensor;
+    private VoltageCompensatedFlywheel voltageCompensatedFlywheel;
     private Servo gate;
     private GoBildaPinpointDriver odo;
     private ElapsedTime time = new ElapsedTime();
@@ -48,6 +51,8 @@ public class SwerveRobot {
         gate.setPosition(0.0);
         telemetry = t;
         odo = hw.get(GoBildaPinpointDriver.class, "odo");
+        batteryVoltageSensor = hardwareMap.voltageSensor.iterator().next();
+        
 
         flywheelRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheelRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -55,7 +60,7 @@ public class SwerveRobot {
         flywheelLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         flywheelLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         flywheelRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
-
+        voltageCompensatedFlywheel = new VoltageCompensatedFlywheel(flywheelLeft, flywheelRight, batteryVoltageSensor);
         odo.setOffsets(16, -10, DistanceUnit.CM); //these are tuned for 3110-0002-0001 Product Insight #1
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD);
         odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
@@ -243,8 +248,8 @@ public class SwerveRobot {
         }
 
         double targetTPS = ((targetRPM) / 60.0) * Constants.TICKS_PER_REV;
-        flywheelRight.setVelocity(targetTPS);
-        flywheelLeft.setPower(flywheelRight.getPower());
+        voltageCompensatedFlywheel.setTargetVelocity(targetTPS);
+        voltageCompensatedFlywheel.update();
     }
 
     private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
