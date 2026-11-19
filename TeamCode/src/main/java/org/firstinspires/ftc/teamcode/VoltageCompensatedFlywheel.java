@@ -15,7 +15,7 @@ public class VoltageCompensatedFlywheel {
     // Adjust kV based on your maximum ticks per second for your UltraPlanetary ratio
     private double kV = 0.0039;
     private double kS = 1.1;
-    private double kP = 0.002;
+    private double kP = 0.003;
     private double kD = 0.0001;
 
     private double targetVelocity = 0.0;
