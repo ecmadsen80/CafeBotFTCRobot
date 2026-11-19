@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.lynx.LynxI2cDeviceSynch;
 import com.qualcomm.robotcore.hardware.I2cAddr;
-import com.qualcomm.robotcore.hardware.I2cDeviceSynch;
 import com.qualcomm.robotcore.hardware.I2cDeviceSynchDevice;
 import com.qualcomm.robotcore.hardware.I2cDeviceSynchSimple;
 import com.qualcomm.robotcore.hardware.configuration.annotations.DeviceProperties;
@@ -13,17 +12,15 @@ import com.qualcomm.robotcore.hardware.configuration.annotations.I2cDeviceType;
   xmlTag = "AdafruitAbsoluteEncoder",
   description = "Adafruit AS5600 Absolute Encoder"
   )
-public class AbsoluteEncoderDriver extends I2cDeviceSynchDevice<I2cDeviceSynch> {
+public class AbsoluteEncoderDriver extends I2cDeviceSynchDevice<I2cDeviceSynchSimple> {
   private int ticks = 0;
   public static final byte DEFAULT_ADDR = 0x36;
   public static final byte ANGLE_REG = 0x0E;
 
-  public AbsoluteEncoderDriver(I2cDeviceSynch deviceClient, boolean deviceClientIsOwned) {
+  public AbsoluteEncoderDriver(I2cDeviceSynchSimple deviceClient, boolean deviceClientIsOwned) {
     super(deviceClient, deviceClientIsOwned);
     this.deviceClient.setI2cAddress(I2cAddr.create7bit(DEFAULT_ADDR));
     super.registerArmingStateCallback(false);
-    this.deviceClient.engage();
-
   }
 
   @Override
