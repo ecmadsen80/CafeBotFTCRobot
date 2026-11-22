@@ -51,7 +51,7 @@ public class SwerveRobot {
         gate.setPosition(0.0);
         telemetry = t;
         odo = hw.get(GoBildaPinpointDriver.class, "odo");
-        batteryVoltageSensor = hardwareMap.voltageSensor.iterator().next();
+        batteryVoltageSensor = hw.voltageSensor.iterator().next();
         
 
         flywheelRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -250,6 +250,10 @@ public class SwerveRobot {
         double targetTPS = ((targetRPM) / 60.0) * Constants.TICKS_PER_REV;
         voltageCompensatedFlywheel.setTargetVelocity(targetTPS);
         voltageCompensatedFlywheel.update();
+    }
+
+    public void setFlywheelTarget(int target) {
+        targetRPM = target;
     }
 
     private double closestAngle(double target, double current) { //method inputs current and target encoder position in degrees
