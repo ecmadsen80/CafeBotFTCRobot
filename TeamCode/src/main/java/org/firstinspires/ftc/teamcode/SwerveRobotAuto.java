@@ -5,6 +5,7 @@ import com.acmerobotics.dashboard.canvas.Canvas;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -16,6 +17,7 @@ public class SwerveRobotAuto extends LinearOpMode {
 
   public void runOpMode() {
     robot.init(hardwareMap, telemetry);
+    robot.setBrakingMode(DcMotor.ZeroPowerBehavior.BRAKE);
 
     waitForStart();
 

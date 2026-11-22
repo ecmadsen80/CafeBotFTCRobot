@@ -23,6 +23,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit;
 
 public class SwerveRobot {
     private SwervePod podLeft = new SwervePod();
@@ -87,6 +88,11 @@ public class SwerveRobot {
         podRight.zero(rightZero);
 
     }
+
+    public void setBrakingMode(DcMotor.ZeroPowerBehavior b) {
+        podLeft.setBrakingMode(b);
+        podRight.setBrakingMode(b);
+    }
     //======================================================================//
     // ALL CODE IN driveAt IS THEORETICAL AND SHOULD BE TESTED BEFORE A MEET//
     //======================================================================//
@@ -94,40 +100,83 @@ public class SwerveRobot {
 
 
     public void driveAt(double targetAngle, double amount, double speed) {
+        // 1. Record starting position using odometry
+        odo.update();
+        double robotStartX = odo.getPosX(DistanceUnit.INCH);
+        double robotStartY = odo.getPosY(DistanceUnit.INCH);
 
+        double distanceTraveled = 0;
+
+        // Get current encoder positions for pods
         int leftCurrentTicks = podLeft.getMotorAngle();
         int rightCurrentTicks = podRight.getMotorAngle();
+
         // Convert to degrees
         int leftCurrentDegrees = (int)((leftCurrentTicks / (double)Constants.GOBILDA_ENCODER_TICKS) * 360);
         int rightCurrentDegrees = (int)((rightCurrentTicks / (double)Constants.GOBILDA_ENCODER_TICKS) * 360);
 
-        double diffLeft = closestAngle(targetAngle, leftCurrentDegrees); //here closest angle for turning the wheel is calculated
-        if (abs(diffLeft) > 90) {                                               //reverses the direction of the motor using "driveMultLeft"
-            targetAngle = (targetAngle + 180) % 360;                 //adjusts the angle to the opposite angle
+        double targetAngleLeft = targetAngle;
+        double targetAngleRight = targetAngle;
+
+        // Optimize LEFT pod
+        double driveMultLeft = 1.0;
+        double diffLeft = closestAngle(targetAngleLeft, leftCurrentDegrees);
+        if (Math.abs(diffLeft) > 90) {
+            driveMultLeft = -1.0;
+            targetAngleLeft = (targetAngleLeft + 180) % 360;
         }
 
-        // 6. Optimization for RIGHT Pod
-        double diffRight = closestAngle(targetAngle, rightCurrentDegrees);
-        if (abs(diffRight) > 90) {
-            targetAngle = (targetAngle + 180) % 360;
+        // Optimize RIGHT pod
+        double driveMultRight = 1.0;
+        double diffRight = closestAngle(targetAngleRight, rightCurrentDegrees);
+        if (Math.abs(diffRight) > 90) {
+            driveMultRight = -1.0;
+            targetAngleRight = (targetAngleRight + 180) % 360;
         }
 
-        // 7. Calculate Final Motor Targets
-        double moveLeft = closestAngle(targetAngle, leftCurrentDegrees) + leftCurrentDegrees;
-        double moveRight = closestAngle(targetAngle, rightCurrentDegrees) + rightCurrentDegrees;
+        // Calculate final motor targets
+        double moveLeft = closestAngle(targetAngleLeft, leftCurrentDegrees) + leftCurrentDegrees;
+        double moveRight = closestAngle(targetAngleRight, rightCurrentDegrees) + rightCurrentDegrees;
 
-        podLeft.setAngle((int)((moveLeft / 360.0) * Constants.GOBILDA_ENCODER_TICKS)); //set angle needs motor ticks
+        // Set pod angles and scaled drive speeds continuously
+        podLeft.setAngle((int)((moveLeft / 360.0) * Constants.GOBILDA_ENCODER_TICKS));
         podRight.setAngle((int)((moveRight / 360.0) * Constants.GOBILDA_ENCODER_TICKS));
-        podLeft.setDrive(speed);
-        podRight.setDrive(speed);
-        double robotStartX = odo.getPosX(DistanceUnit.INCH);
-        double robotStartY = odo.getPosY(DistanceUnit.INCH);
-        while (Math.hypot(robotStartX-odo.getPosX(DistanceUnit.INCH), robotStartY - odo.getPosY(DistanceUnit.INCH)) < amount) {
+        while (podRight.isBusy() || podLeft.isBusy()) {}
 
+        // 2. Continuous control loop
+        while (distanceTraveled < amount) {
+            odo.update();
+            double currentX = odo.getPosX(DistanceUnit.INCH);
+            double currentY = odo.getPosY(DistanceUnit.INCH);
+            distanceTraveled = Math.hypot(currentX - robotStartX, currentY - robotStartY);
+
+            // Calculate remaining distance for deceleration scaling
+            double remainingDistance = amount - distanceTraveled;
+
+            // Scale speed down as we get close (e.g., within 4 inches) to prevent overshoot
+            // Minimum speed (0.15) ensures it overcomes static friction to reach the target
+            double currentSpeed = speed;
+            if (remainingDistance < 4.0) {
+                currentSpeed = Math.max(speed * (remainingDistance / 4.0), 0.15);
+            }
+
+            // If we've reached the target distance, break out of the loop
+            if (distanceTraveled >= amount) {
+                break;
+            }
+
+
+
+
+            podLeft.setDrive(currentSpeed * driveMultLeft);
+            podRight.setDrive(currentSpeed * driveMultRight);
         }
+
+        // 3. Stop drive motors cleanly
         podLeft.setDrive(0);
         podRight.setDrive(0);
-
+        odo.update();
+        while (Math.hypot(odo.getVelX(DistanceUnit.INCH), odo.getVelY(DistanceUnit.INCH)) > 0.3) {odo.update();}
     }
 
     //driveTo code is also theoretical and should be tested before a meet.

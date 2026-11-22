@@ -13,10 +13,13 @@ public class SwervePod {
     public void init(HardwareMap hw, String t, String d, String e) {
         turn = hw.get(DcMotorEx.class, t);
         drive = hw.get(DcMotor.class, d);
-        enc = hw.get(AbsoluteEncoderDriver.class, e);
+        encoder = hw.get(AbsoluteEncoderDriver.class, e);
         calibrate();
     }
 
+    public void setBrakingMode(DcMotor.ZeroPowerBehavior b) {
+        drive.setZeroPowerBehavior(b);
+    }
     public void zero(double zeroAngle) {
         turn.setPower(1.0);
 
@@ -53,7 +56,7 @@ public class SwervePod {
         turn.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         turn.setTargetPosition(0);
         turn.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        turn.setVelocity(Constants.TURN_VELOCITY);
+        turn.setVelocity(3000);
     }
 
     public void resetTurn() {
