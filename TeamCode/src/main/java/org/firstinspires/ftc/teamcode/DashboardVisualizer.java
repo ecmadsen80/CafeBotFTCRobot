@@ -29,6 +29,8 @@ public class DashboardVisualizer {
         TelemetryPacket packet = new TelemetryPacket(false);
         Canvas fieldOverlay = packet.fieldOverlay();
 
+        packet.fieldOverlay().drawImage("/images/biobuzz.png", 0, 0, 144, 144);
+
         // 1. Draw robot body (18x18 inch square)
         fieldOverlay.setStroke("red");
         fieldOverlay.setStrokeWidth(1);
@@ -37,7 +39,7 @@ public class DashboardVisualizer {
         // 2. Draw heading direction line (12 inches forward)
         double headingRad = Math.toRadians(robotHeading+180);
         double frontX = robotX + Math.cos(headingRad) * 12;
-        double frontY = robotY - Math.sin(headingRad) * 12;
+        double frontY = robotY + Math.sin(headingRad) * 12;
         fieldOverlay.strokeLine(robotX, robotY, frontX, frontY);
 
         // 3. Send numeric values to dashboard variables

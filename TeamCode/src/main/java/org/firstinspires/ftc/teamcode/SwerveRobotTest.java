@@ -33,6 +33,7 @@ public class SwerveRobotTest extends LinearOpMode {
             double robotX = pos.getX(DistanceUnit.INCH);
             double robotY = pos.getY(DistanceUnit.INCH);
             double robotHeading = pos.getHeading(AngleUnit.DEGREES);
+            /*
             TelemetryPacket packet = new TelemetryPacket();
             Canvas fieldOverlay = packet.fieldOverlay(); // Get the field drawing layer
 
@@ -40,7 +41,7 @@ public class SwerveRobotTest extends LinearOpMode {
             fieldOverlay.setStroke("blue");
             fieldOverlay.setStrokeWidth(1);
 
-            // Draw robot perimeter (Assume a typical 18x18 inch robot frame)
+            Draw robot perimeter (Assume a typical 18x18 inch robot frame)
             fieldOverlay.strokeRect(robotX-9, robotY-9, 18, 18);
             double headingRad = Math.toRadians(robotHeading);
 
@@ -49,6 +50,7 @@ public class SwerveRobotTest extends LinearOpMode {
 
             fieldOverlay.strokeLine(robotX, robotY, frontX, frontY);
             dashboard.sendTelemetryPacket(packet);
+             */
 
             double intakePower = 0;
             if (gamepad1.right_trigger > 0) {

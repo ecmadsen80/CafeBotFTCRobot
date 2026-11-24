@@ -64,7 +64,7 @@ public class SwerveRobot {
         flywheelLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         flywheelRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfFullWeight);
         voltageCompensatedFlywheel = new VoltageCompensatedFlywheel(flywheelLeft, flywheelRight, batteryVoltageSensor);
-        odo.setOffsets(16, -10, DistanceUnit.CM); //these are tuned for 3110-0002-0001 Product Insight #1
+        odo.setOffsets(-20, 8, DistanceUnit.CM); //these are tuned for 3110-0002-0001 Product Insight #1
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD);
         odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.REVERSED);
         odo.resetPosAndIMU();
@@ -211,6 +211,8 @@ public class SwerveRobot {
 
     public void driveGamepad(Gamepad gamepad) {
         odo.update();
+        visualizer.update();
+
         double lx = gamepad.left_stick_x;
         double ly = -gamepad.left_stick_y;
         double turn = gamepad.right_stick_x;
