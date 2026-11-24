@@ -11,6 +11,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 public class SwerveBotAuto extends LinearOpMode {
 
     SwerveRobot robot = new SwerveRobot();
+    DashboardVisualizer visualizer = new DashboardVisualizer(robot.getOdo());
     @Override
     public void runOpMode() {
         robot.init(hardwareMap, telemetry);
@@ -22,9 +23,14 @@ public class SwerveBotAuto extends LinearOpMode {
         //entire auto is finished.
 
         robot.driveAt(0, 24, 0.5); //drive forward 6 inches
+
         robot.driveAt(90, 12, 0.5);
+
+
         robot.driveAt(180, 24, 0.5);
+
         robot.driveAt(270, 12, 0.5);
+
 
         robot.driveTo(new Pose2D(DistanceUnit.INCH, 12, 0, AngleUnit.DEGREES, 90), 0.5);
 

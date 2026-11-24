@@ -29,6 +29,7 @@ public class SwerveRobot {
     private SwervePod podLeft = new SwervePod();
     private SwervePod podRight = new SwervePod();
     private Intake intake = new Intake();
+    private DashboardVisualizer visualizer;
 
     private DcMotorEx flywheelRight = null;
     private DcMotorEx flywheelLeft = null;
@@ -52,6 +53,7 @@ public class SwerveRobot {
         gate.setPosition(0.0);
         telemetry = t;
         odo = hw.get(GoBildaPinpointDriver.class, "odo");
+        visualizer = new DashboardVisualizer(odo);
         batteryVoltageSensor = hw.voltageSensor.iterator().next();
         
 
@@ -64,7 +66,7 @@ public class SwerveRobot {
         voltageCompensatedFlywheel = new VoltageCompensatedFlywheel(flywheelLeft, flywheelRight, batteryVoltageSensor);
         odo.setOffsets(16, -10, DistanceUnit.CM); //these are tuned for 3110-0002-0001 Product Insight #1
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD);
-        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
+        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.REVERSED);
         odo.resetPosAndIMU();
 
         time.reset();
@@ -102,6 +104,7 @@ public class SwerveRobot {
     public void driveAt(double targetAngle, double amount, double speed) {
         // 1. Record starting position using odometry
         odo.update();
+        visualizer.update();
         double robotStartX = odo.getPosX(DistanceUnit.INCH);
         double robotStartY = odo.getPosY(DistanceUnit.INCH);
 
@@ -146,6 +149,7 @@ public class SwerveRobot {
         // 2. Continuous control loop
         while (distanceTraveled < amount) {
             odo.update();
+            visualizer.update();
             double currentX = odo.getPosX(DistanceUnit.INCH);
             double currentY = odo.getPosY(DistanceUnit.INCH);
             distanceTraveled = Math.hypot(currentX - robotStartX, currentY - robotStartY);
@@ -176,7 +180,8 @@ public class SwerveRobot {
         podLeft.setDrive(0);
         podRight.setDrive(0);
         odo.update();
-        while (Math.hypot(odo.getVelX(DistanceUnit.INCH), odo.getVelY(DistanceUnit.INCH)) > 0.3) {odo.update();}
+        visualizer.update();
+        while (Math.hypot(odo.getVelX(DistanceUnit.INCH), odo.getVelY(DistanceUnit.INCH)) > 0.3) {odo.update(); visualizer.update();}
     }
 
     //driveTo code is also theoretical and should be tested before a meet.
@@ -206,9 +211,9 @@ public class SwerveRobot {
 
     public void driveGamepad(Gamepad gamepad) {
         odo.update();
-        double lx = -gamepad.left_stick_x;
-        double ly = gamepad.left_stick_y;
-        double turn = -gamepad.right_stick_x;
+        double lx = gamepad.left_stick_x;
+        double ly = -gamepad.left_stick_y;
+        double turn = gamepad.right_stick_x;
         double leftRotationX = 0;   // Vertical component of rotation for left pod
         double leftRotationY = turn;
         double rightRotationX = 0;
@@ -315,4 +320,6 @@ public class SwerveRobot {
     public void setIntakePower(double pow) {
         intake.setPower(pow);
     }
+
+    public GoBildaPinpointDriver getOdo() { return odo;}
 }
